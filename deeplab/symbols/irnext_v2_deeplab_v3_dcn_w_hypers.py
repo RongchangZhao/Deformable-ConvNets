@@ -12,7 +12,7 @@
 
 #  0. Todo: Make Code Tidier (with exec)
 #  1. Todo: ResNeXt v2 : Grouping + Pre-Activation
-#  2. Todo: IRB: Inception-ResNet Block, with Grouping
+#  2. Todo: IRB: First Block of Inception-ResNet , with Grouping
 #  3. Todo: DeepLab v3, with multiple dilation pattern options
 #  4. Todo: Dual Path Network ( DenseNet + ResNeXt Nx4d)
 
@@ -26,42 +26,90 @@ from utils.symbol import Symbol
 
 ###### UNIT LIST #######
 
-# Todo 1.
+# Todo 1,2,4
 
-def resnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, num_group=32, bn_mom=0.9, workspace=256, memonger=False):
+def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
+                 num_group=32, dilation=1, irv2 = False, deform=0, bn_mom=0.9, workspace=256, memonger=False):
+    
     """
-    TODO!!!
-    
-    
-    Return ResNet Unit symbol for building ResNet
+    Return ResNet Unit symbol for building ResNeXt
     Parameters
     ----------
     data : str
         Input data
     num_filter : int
         Number of output channels
-    bnf : int
-        Bottle neck channels factor with regard to num_filter
-    stride : tuple
-        Stride used in convolution
+    stride : int
+        Number of stride, 2 when block-crossing with downsampling or simple downsampling, else 1.
     dim_match : Boolean
         True means channel number between input and output is the same, otherwise means differ
-    name : str
+    name: str
         Base name of the operators
     workspace : int
         Workspace used in convolution operator
+    bottle_neck : int = 0,1,2,3
+        If 0: Use conventional Conv3,3-Conv3,3
+        If 1: Use ResNeXt Conv1,1-Conv3,3-Conv1,1
+        If 2: Use IRB use Conv1,1-[Conv3,3;Conv3,3-Conv3,3]-Conv1,1
+        If 3: Use Dual-Path-Net
+    irv2: Boolean 
+        if True: IRB use pre-activation
+        if False: IRB do not use pre-activation
+        
+    expansion : float
+        ResNet use 4, ResNeXt use 2, DenseNet use 0.25
+    num_group: int
+        Feasible Range: 4,8,16,32,64
+    dilation: int
+        a.k.a Atrous Convolution
+    deform: 
+        Deformable Conv Net
     """
-    if bottle_neck:
+    
+    ## If 0: Use conventional Conv3,3-Conv3,3
+    if bottle_neck == 0 :
+        
+        conv1 = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(3,3), stride=stride, 
+                                   pad=(dilation,dilation), dilate=(dilation,dilation), 
+                                   no_bias=True, workspace=workspace, name=name + '_conv1')
+        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn1')
+        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
+
+        
+        conv2 = mx.sym.Convolution(data=act1, num_filter=num_filter, kernel=(3,3), stride=(1,1),
+                                   pad=(dilation,dilation), dilate=(dilation,dilation)
+                                      no_bias=True, workspace=workspace, name=name + '_conv2')
+        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn2')
+
+        if dim_match:
+            shortcut = data
+        else:
+            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
+                                            workspace=workspace, name=name+'_sc')
+            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
+
+        if memonger:
+            shortcut._set_attr(mirror_stage='True')
+            
+        eltwise = bn2 + shortcut
+        
+        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
+    
+    # If 1: Use ResNeXt Conv1,1-Conv3,3-Conv1,1 
+    elif bottle_neck == 1:
+        
         # the same as https://github.com/facebook/fb.resnet.torch#notes, a bit difference with origin paper
         
-        conv1 = mx.sym.Convolution(data=data, num_filter=int(num_filter*0.5), kernel=(1,1), stride=(1,1), pad=(0,0),
+        conv1 = mx.sym.Convolution(data=data, num_filter=int(num_filter/expansion), kernel=(1,1), stride=(1,1), pad=(0,0),
                                       no_bias=True, workspace=workspace, name=name + '_conv1')
         bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn1')
         act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
 
         
-        conv2 = mx.sym.Convolution(data=act1, num_filter=int(num_filter*0.5), num_group=num_group, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
+        conv2 = mx.sym.Convolution(data=act1, num_filter=int(num_filter/expansion), 
+                                   num_group=num_group, kernel=(3,3), stride=stride, 
+                                   pad=(dilation,dilation), dilate=(dilation,dilation),
+                                   no_bias=True, workspace=workspace, name=name + '_conv2')
         bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn2')
         act2 = mx.sym.Activation(data=bn2, act_type='relu', name=name + '_relu2')
 
@@ -81,198 +129,87 @@ def resnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, nu
             shortcut._set_attr(mirror_stage='True')
         eltwise =  bn3 + shortcut
         return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
+    
+    
+    elif bottle_neck == 2:
+        # Left Branch
+        conv11 = mx.sym.Convolution(data=data, num_filter=int(num_filter/expansion), kernel=(1,1), stride=(1,1), pad=(0,0),
+                                      no_bias=True, workspace=workspace, name=name + '_conv11')
+        bn11 = mx.sym.BatchNorm(data=conv11, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn11')
+        act11 = mx.sym.Activation(data=bn11, act_type='relu', name=name + '_relu11')
+
+        
+        conv12 = mx.sym.Convolution(data=act11, num_filter=int(num_filter/expansion), 
+                                   num_group=num_group, kernel=(3,3), stride=stride, 
+                                   pad=(dilation,dilation), dilate=(dilation,dilation),
+                                   no_bias=True, workspace=workspace, name=name + '_conv12')
+        
+        # Right Branch
+        conv21 = mx.sym.Convolution(data=data, num_filter=int(num_filter/expansion/2), kernel=(1,1), stride=(1,1), pad=(0,0),
+                                      no_bias=True, workspace=workspace, name=name + '_conv21')
+        bn21 = mx.sym.BatchNorm(data=conv21, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn21')
+        act21 = mx.sym.Activation(data=bn21, act_type='relu', name=name + '_relu21')
+
+        
+        conv22 = mx.sym.Convolution(data=act21, num_filter=int(num_filter/expansion/2), 
+                                   num_group=num_group, kernel=(3,3), stride=stride, 
+                                   pad=(dilation,dilation), dilate=(dilation,dilation),
+                                   no_bias=True, workspace=workspace, name=name + '_conv22')
+        
+        bn22 = mx.sym.BatchNorm(data=conv22, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn22')
+        act22 = mx.sym.Activation(data=bn22, act_type='relu', name=name + '_relu22')
+        
+        # Consecutive Conv(3,3) Use  stride=(1,1) instead of stride=(3,3)
+        conv23 = mx.sym.Convolution(data=act22, num_filter=int(num_filter/expansion/2), 
+                                   num_group=num_group, kernel=(3,3), stride=(1,1), 
+                                   pad=(dilation,dilation), dilate=(dilation,dilation),
+                                   no_bias=True, workspace=workspace, name=name + '_conv23')
+        
+        conv2 = mx.symbol.Concat(*[conv12, conv23])
+        
+        bn30 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn30')
+        act30 = mx.sym.Activation(data=bn30, act_type='relu', name=name + '_relu30')
+        
+        conv31 = mx.sym.Convolution(data=act30, num_filter=num_filter, kernel=(1,1), stride=(1,1), pad=(0,0),
+                                      no_bias=True, workspace=workspace, name=name + '_conv31')
+        
+        bn31 = mx.sym.BatchNorm(data=conv31, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn31')
+        # Original Paper: With act31
+        act31 = mx.sym.Activation(data=bn31, act_type='relu', name=name + '_relu31')
+        
+        
+        if dim_match:
+            shortcut = data
+        else:
+            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
+                                            workspace=workspace, name=name+'_sc')
+            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
+
+        if memonger:
+            shortcut._set_attr(mirror_stage='True')
+        # Original Paper : act31+shortcut, else bn31 + shortcut
+        if irv2: 
+            eltwise =  bn31 + shortcut
+        else :
+            eltwise =  act31 + shortcut
+        
+        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
+    
+    
+    elif bottle_neck == 3:
+         # TODO
+        raise Exception("bottle_neck error: Unimplemented Bottleneck Unit: Dual Path Net.")
+         
     else:
-        
-        conv1 = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv1')
-        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn1')
-        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
+        raise Exception("bottle_neck error: Unrecognized Bottleneck params.")
 
-        
-        conv2 = mx.sym.Convolution(data=act1, num_filter=num_filter, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
-        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn2')
-
-        if dim_match:
-            shortcut = data
-        else:
-            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
-                                            workspace=workspace, name=name+'_sc')
-            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
-
-        if memonger:
-            shortcut._set_attr(mirror_stage='True')
-        eltwise = bn2 + shortcut
-        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
-    
-
-# Todo 2.
-    
-    
-def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, num_group=32, bn_mom=0.9, workspace=256, memonger=False):
-    """
-    TODO!!!
-    
-    
-    Return First Block Type of IRNeXt Unit symbol for building Total Network
-    Parameters
-    ----------
-    data : str
-        Input data
-    num_filter : int
-        Number of output channels
-    bnf : int
-        Bottle neck channels factor with regard to num_filter
-    stride : tuple
-        Stride used in convolution
-    dim_match : Boolean
-        True means channel number between input and output is the same, otherwise means differ
-    name : str
-        Base name of the operators
-    workspace : int
-        Workspace used in convolution operator
-    """
-    if bottle_neck:
-        # the same as https://github.com/facebook/fb.resnet.torch#notes, a bit difference with origin paper
-        
-        conv1 = mx.sym.Convolution(data=data, num_filter=int(num_filter*0.5), kernel=(1,1), stride=(1,1), pad=(0,0),
-                                      no_bias=True, workspace=workspace, name=name + '_conv1')
-        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn1')
-        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
-
-        
-        conv2 = mx.sym.Convolution(data=act1, num_filter=int(num_filter*0.5), num_group=num_group, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
-        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn2')
-        act2 = mx.sym.Activation(data=bn2, act_type='relu', name=name + '_relu2')
-
-        
-        conv3 = mx.sym.Convolution(data=act2, num_filter=num_filter, kernel=(1,1), stride=(1,1), pad=(0,0), no_bias=True,
-                                   workspace=workspace, name=name + '_conv3')
-        bn3 = mx.sym.BatchNorm(data=conv3, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn3')
-
-        if dim_match:
-            shortcut = data
-        else:
-            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
-                                            workspace=workspace, name=name+'_sc')
-            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
-
-        if memonger:
-            shortcut._set_attr(mirror_stage='True')
-        eltwise =  bn3 + shortcut
-        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
-    else:
-        
-        conv1 = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv1')
-        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn1')
-        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
-
-        
-        conv2 = mx.sym.Convolution(data=act1, num_filter=num_filter, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
-        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn2')
-
-        if dim_match:
-            shortcut = data
-        else:
-            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
-                                            workspace=workspace, name=name+'_sc')
-            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
-
-        if memonger:
-            shortcut._set_attr(mirror_stage='True')
-        eltwise = bn2 + shortcut
-        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
-    
-
-# Todo 4.
-    
-def dpn_unit(data, num_filter, stride, dim_match, name, bottle_neck=True, num_group=32, bn_mom=0.9, workspace=256, memonger=False):
-    """
-    TODO!!!
-    
-    
-    Return ResNet Unit symbol for building ResNet
-    Parameters
-    ----------
-    data : str
-        Input data
-    num_filter : int
-        Number of output channels
-    bnf : int
-        Bottle neck channels factor with regard to num_filter
-    stride : tuple
-        Stride used in convolution
-    dim_match : Boolean
-        True means channel number between input and output is the same, otherwise means differ
-    name : str
-        Base name of the operators
-    workspace : int
-        Workspace used in convolution operator
-    """
-    if bottle_neck:
-        # the same as https://github.com/facebook/fb.resnet.torch#notes, a bit difference with origin paper
-        
-        conv1 = mx.sym.Convolution(data=data, num_filter=int(num_filter*0.5), kernel=(1,1), stride=(1,1), pad=(0,0),
-                                      no_bias=True, workspace=workspace, name=name + '_conv1')
-        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn1')
-        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
-
-        
-        conv2 = mx.sym.Convolution(data=act1, num_filter=int(num_filter*0.5), num_group=num_group, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
-        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn2')
-        act2 = mx.sym.Activation(data=bn2, act_type='relu', name=name + '_relu2')
-
-        
-        conv3 = mx.sym.Convolution(data=act2, num_filter=num_filter, kernel=(1,1), stride=(1,1), pad=(0,0), no_bias=True,
-                                   workspace=workspace, name=name + '_conv3')
-        bn3 = mx.sym.BatchNorm(data=conv3, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_bn3')
-
-        if dim_match:
-            shortcut = data
-        else:
-            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
-                                            workspace=workspace, name=name+'_sc')
-            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
-
-        if memonger:
-            shortcut._set_attr(mirror_stage='True')
-        eltwise =  bn3 + shortcut
-        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
-    else:
-        
-        conv1 = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(3,3), stride=stride, pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv1')
-        bn1 = mx.sym.BatchNorm(data=conv1, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn1')
-        act1 = mx.sym.Activation(data=bn1, act_type='relu', name=name + '_relu1')
-
-        
-        conv2 = mx.sym.Convolution(data=act1, num_filter=num_filter, kernel=(3,3), stride=(1,1), pad=(1,1),
-                                      no_bias=True, workspace=workspace, name=name + '_conv2')
-        bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn2')
-
-        if dim_match:
-            shortcut = data
-        else:
-            shortcut_conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(1,1), stride=stride, no_bias=True,
-                                            workspace=workspace, name=name+'_sc')
-            shortcut = mx.sym.BatchNorm(data=shortcut_conv, fix_gamma=False, eps=2e-5, momentum=bn_mom, name=name + '_sc_bn')
-
-        if memonger:
-            shortcut._set_attr(mirror_stage='True')
-        eltwise = bn2 + shortcut
-        return mx.sym.Activation(data=eltwise, act_type='relu', name=name + '_relu')
-    
-    
 
 # Todo 0 & 3 .
     
 
 
 class resnet_v1_101_deeplab_dcn(Symbol):
+    
     def __init__(self):
         """
         Use __init__ to define parameter network needs
