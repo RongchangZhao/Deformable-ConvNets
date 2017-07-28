@@ -32,7 +32,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
                  num_group=32, dilation=1, irv2 = False, deform=0, bn_mom=0.9, workspace=256, memonger=False):
     
     """
-    Return ResNet Unit symbol for building ResNeXt
+    Return Unit symbol for building ResNeXt/simplified Xception block
     Parameters
     ----------
     data : str
@@ -204,13 +204,243 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
         raise Exception("bottle_neck error: Unrecognized Bottleneck params.")
 
 
+        
+def irnext(units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, taskmode='CLS',
+           seg_stride_list = [1,2,2,1],
+           bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
+    """Return ResNeXt symbol of
+    Parameters
+    ----------
+    units : list
+        Number of units in each stage
+    num_stages : int
+        Number of stage
+    filter_list : list
+        Channel size of each stage
+    num_classes : int
+        Number of Classes, 1k/5k/11k/22k/etc
+    num_groups: int
+        Same as irnext unit
+    bottle_neck: int=0,1,2,3
+        Same as irnext unit
+    lastout: int
+        Size of last Conv
+        Original Image Size Should Be: 3,(32*lastout),(32*lastout)
+    expansion: float
+        Same as irnext unit
+    dilpat: str
+        Best Practice: DEEPLAB.SHUTTLE
+        '': (1,1,1)
+        DEEPLAB.SHUTTLE: (1,2,1)
+        DEEPLAB.HOURGLASS: (2,1,2)
+        DEEPLAB.LIN: (1,2,3)
+        DEEPLAB.REVLIN: (3,2,1)
+        DEEPLAB.DOUBLE: (2,2,2)
+        DEEPLAB.EXP: (1,2,4)
+        DEEPLAB.REVEXP: (4,2,1)
+    deform: int
+        Use DCN
+    taskmode: str
+        'CLS': Classification
+        'Seg': Segmentation
+    dataset : str
+        Dataset type, only cifar10 and imagenet supports
+    workspace : int
+        Workspace used in convolution operator
+    dtype : str
+        Precision (float32 or float16)
+    """
+
+    num_unit = len(units)
+    assert(num_unit == num_stages)
+    data = mx.sym.Variable(name='data')
+    if dtype == 'float32':
+        data = mx.sym.identity(data=data, name='id')
+    else:
+        if dtype == 'float16':
+            data = mx.sym.Cast(data=data, dtype=np.float16)
+    
+    data = mx.sym.BatchNorm(data=data, fix_gamma=True, eps=2e-5, momentum=bn_mom, name='bn_data')
+    
+    (nchannel, height, width) = (3, lastout*32, lastout*32)
+    
+    
+    
+    if height <= 32:            # such as cifar10/cifar100
+        body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(1,1), pad=(1, 1),
+                                  no_bias=True, name="conv0", workspace=workspace)
+    else:                       # often expected to be 224 such as imagenet
+        body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
+                                  no_bias=True, name="conv0", workspace=workspace)
+        body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
+        body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
+        body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
+
+        
+    # Unit Params List:
+    # data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
+    # num_group=32, dilation=1, irv2 = False, deform=0, 
+    
+    dilation_dict = {'DEEPLAB.SHUTTLE':[1,1,2,1],
+                    'DEEPLAB.HOURGLASS':[1,2,1,2],
+                    'DEEPLAB.EXP':[1,1,2,4],
+                    'DEEPLAB.REVEXP':[1,4,2,1],
+                    'DEEPLAB.LIN':[1,1,2,3]
+                    'DEEPLAB.REVLIN':[1,3,2,1],
+                    'DEEPLAB.DOUBLE':[1,2,2,2]}
+    
+    
+    
+    if taskmode == 'CLS':
+        stride_plan = [1,2,2,2]
+        dilation_plan = [1,1,1,1] if dilpat not in dilation_dict else dilation_dict[dilpat]
+        
+        for i in range(num_stages):
+            body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
+                             name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
+                             expansion = expansion, num_group=num_group, dilate = (dilation_plan[i],dilation_plan[i]),
+                             irv2 = irv2, deform = deform
+                             bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+            for j in range(units[i]-1):
+                body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
+                                 bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
+                                 dilate = (dilation_plan[i],dilation_plan[i]), irv2 = irv2, deform = deform ,
+                                 bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+            
+        pool1 = mx.sym.Pooling(data=body, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
+        flat = mx.sym.Flatten(data=pool1)
+        fc1 = mx.sym.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
+        if dtype == 'float16':
+            fc1 = mx.sym.Cast(data=fc1, dtype=np.float32)
+        return mx.sym.SoftmaxOutput(data=fc1, name='softmax')
+    
+    
+    elif taskmode == 'SEG':
+        
+        # Deeplab Without Deform
+        # Deeplab With Deform
+        # Deeplab v1 Use Stride_List = [1,2,2,1] So a 16x Deconv Needed
+        # Deeplab v2/v3 Use Stride_List = [1,2,1,1] So 1/8 gt and 1/8 img compute loss
+        # Pytorch-Deeplab Use 1x+0.707x+0.5x Multi-Scale Shared Params Trick
+        stride_plan = seg_stride_plan
+        dilation_plan = [1,1,1,1] if dilpat not in dilation_dict else dilation_dict[dilpat]
+        
+        for i in range(num_stages):
+            body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
+                             name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
+                             expansion = expansion, num_group=num_group, dilate = (dilation_plan[i],dilation_plan[i]),
+                             irv2 = irv2, deform = deform
+                             bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+            for j in range(units[i]-1):
+                body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
+                                 bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
+                                 dilate = (dilation_plan[i],dilation_plan[i]), irv2 = irv2, deform = deform ,
+                                 bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+                
+        return body
+        
+
+def get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+               taskmode='CLS', seg_stride_mode='', dtype='float32', **kwargs):
+    """
+    Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
+    Original author Wei Wu
+    """
+    
+    # Model Params List:
+    # num_classes, num_layers, bottle_neck=1, expansion=0.5, \
+    # num_group=32, dilation=1, irv2 = False, deform=0, taskmode, seg_stride_mode
+    
+    (nchannel, height, width) = (3, 32* lastout, 32*lastout)
+    
+    
+    if height <= 32: # CIFAR10/CIFAR100
+        num_stages = 3
+        if (num_layers-2) % 9 == 0 and num_layers >= 164:
+            per_unit = [(num_layers-2)//9]
+            filter_list = [16, int(outfeature/4), int(outfeature/2), outfeature]
+            use_bottle_neck = bottle_neck
+            
+        elif (num_layers-2) % 6 == 0 and num_layers < 164:
+            per_unit = [(num_layers-2)//6]
+            filter_list = [16, int(outfeature/4), int(outfeature/2), outfeature]
+            use_bottle_neck = 0
+        else:
+            raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
+        
+        units = per_unit * num_stages
+        
+    else:
+        if num_layers >= 38:
+            filter_list = [64, int(outfeature/8) , int(outfeature/4), int(outfeature/2), outfeature ]
+            use_bottle_neck = bottle_neck
+        else:
+            filter_list = [64, int(outfeature/8) , int(outfeature/4), int(outfeature/2), outfeature ]
+            use_bottle_neck = 0
+            
+        num_stages = 4
+        if num_layers == 18:
+            units = [2, 2, 2, 2]
+        elif num_layers == 34:
+            units = [3, 4, 6, 3]
+        elif num_layers == 38:
+            units = [3, 3, 3, 3]
+        elif num_layers == 50:
+            units = [3, 4, 6, 3]
+        elif num_layers == 80:
+            units = [3, 8, 12, 3]
+        elif num_layers == 101:
+            units = [3, 4, 23, 3]
+        elif num_layers == 152:
+            units = [3, 8, 36, 3]
+        elif num_layers == 200:
+            units = [3, 24, 36, 3]
+        elif num_layers == 269:
+            units = [3, 30, 48, 8]
+        else:
+            raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
+
+    if seg_stride_mode == '4x':
+        seg_stride_list = [1,1,1,1]
+    elif seg_stride_mode == '8x':
+        seg_stride_list = [1,2,1,1]
+    elif seg_stride_mode == '16x':
+        seg_stride_list = [1,2,2,1]
+    else:
+        seg_stride_list = [1,2,2,1]
+        
+    
+    return irnext(units       = units,
+                  num_stages  = num_stages,
+                  filter_list = filter_list,
+                  num_classes = num_classes,
+                  num_group   = num_group, 
+                  bottle_neck = use_bottle_neck,
+                  lastout     = lastout,
+                  expansion   = expansion,
+                  dilpat      = dilpat, 
+                  irv2        = irv2,
+                  deform      = deform, 
+                  taskmode    = taskmode,
+                  seg_stride_list = seg_stride_list,
+                  workspace   = conv_workspace,
+                  dtype       = dtype)
+        
+#### Original Deeplab DCN
+        
+        
+        
 # Todo 0 & 3 .
-    
 
 
-class resnet_v1_101_deeplab_dcn(Symbol):
+class irnext_deeplab_dcn(Symbol):
     
-    def __init__(self):
+    
+    def __init__(self, numclasses , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+                taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
         """
@@ -220,731 +450,23 @@ class resnet_v1_101_deeplab_dcn(Symbol):
         self.units = (3, 4, 23, 3) # use for 101
         self.filter_list = [256, 512, 1024, 2048]
 
-    def get_resnet_conv(self, data):
-        conv1 = mx.symbol.Convolution(name='conv1', data=data, num_filter=64, pad=(3, 3), kernel=(7, 7), stride=(2, 2),
-                                      no_bias=True)
-        bn_conv1 = mx.symbol.BatchNorm(name='bn_conv1', data=conv1, use_global_stats=True, fix_gamma=False, eps = self.eps)
-        scale_conv1 = bn_conv1
-        conv1_relu = mx.symbol.Activation(name='conv1_relu', data=scale_conv1, act_type='relu')
-        pool1 = mx.symbol.Pooling(name='pool1', data=conv1_relu, pooling_convention='full', pad=(0, 0), kernel=(3, 3),
-                                  stride=(2, 2), pool_type='max')
-        res2a_branch1 = mx.symbol.Convolution(name='res2a_branch1', data=pool1, num_filter=256, pad=(0, 0),
-                                              kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2a_branch1 = mx.symbol.BatchNorm(name='bn2a_branch1', data=res2a_branch1, use_global_stats=True,
-                                           fix_gamma=False, eps = self.eps)
-        scale2a_branch1 = bn2a_branch1
-        res2a_branch2a = mx.symbol.Convolution(name='res2a_branch2a', data=pool1, num_filter=64, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2a_branch2a = mx.symbol.BatchNorm(name='bn2a_branch2a', data=res2a_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2a_branch2a = bn2a_branch2a
-        res2a_branch2a_relu = mx.symbol.Activation(name='res2a_branch2a_relu', data=scale2a_branch2a, act_type='relu')
-        res2a_branch2b = mx.symbol.Convolution(name='res2a_branch2b', data=res2a_branch2a_relu, num_filter=64,
-                                               pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn2a_branch2b = mx.symbol.BatchNorm(name='bn2a_branch2b', data=res2a_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2a_branch2b = bn2a_branch2b
-        res2a_branch2b_relu = mx.symbol.Activation(name='res2a_branch2b_relu', data=scale2a_branch2b, act_type='relu')
-        res2a_branch2c = mx.symbol.Convolution(name='res2a_branch2c', data=res2a_branch2b_relu, num_filter=256,
-                                               pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2a_branch2c = mx.symbol.BatchNorm(name='bn2a_branch2c', data=res2a_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2a_branch2c = bn2a_branch2c
-        res2a = mx.symbol.broadcast_add(name='res2a', *[scale2a_branch1, scale2a_branch2c])
-        res2a_relu = mx.symbol.Activation(name='res2a_relu', data=res2a, act_type='relu')
-        res2b_branch2a = mx.symbol.Convolution(name='res2b_branch2a', data=res2a_relu, num_filter=64, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2b_branch2a = mx.symbol.BatchNorm(name='bn2b_branch2a', data=res2b_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2b_branch2a = bn2b_branch2a
-        res2b_branch2a_relu = mx.symbol.Activation(name='res2b_branch2a_relu', data=scale2b_branch2a, act_type='relu')
-        res2b_branch2b = mx.symbol.Convolution(name='res2b_branch2b', data=res2b_branch2a_relu, num_filter=64,
-                                               pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn2b_branch2b = mx.symbol.BatchNorm(name='bn2b_branch2b', data=res2b_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2b_branch2b = bn2b_branch2b
-        res2b_branch2b_relu = mx.symbol.Activation(name='res2b_branch2b_relu', data=scale2b_branch2b, act_type='relu')
-        res2b_branch2c = mx.symbol.Convolution(name='res2b_branch2c', data=res2b_branch2b_relu, num_filter=256,
-                                               pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2b_branch2c = mx.symbol.BatchNorm(name='bn2b_branch2c', data=res2b_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2b_branch2c = bn2b_branch2c
-        res2b = mx.symbol.broadcast_add(name='res2b', *[res2a_relu, scale2b_branch2c])
-        res2b_relu = mx.symbol.Activation(name='res2b_relu', data=res2b, act_type='relu')
-        res2c_branch2a = mx.symbol.Convolution(name='res2c_branch2a', data=res2b_relu, num_filter=64, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2c_branch2a = mx.symbol.BatchNorm(name='bn2c_branch2a', data=res2c_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2c_branch2a = bn2c_branch2a
-        res2c_branch2a_relu = mx.symbol.Activation(name='res2c_branch2a_relu', data=scale2c_branch2a, act_type='relu')
-        res2c_branch2b = mx.symbol.Convolution(name='res2c_branch2b', data=res2c_branch2a_relu, num_filter=64,
-                                               pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn2c_branch2b = mx.symbol.BatchNorm(name='bn2c_branch2b', data=res2c_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2c_branch2b = bn2c_branch2b
-        res2c_branch2b_relu = mx.symbol.Activation(name='res2c_branch2b_relu', data=scale2c_branch2b, act_type='relu')
-        res2c_branch2c = mx.symbol.Convolution(name='res2c_branch2c', data=res2c_branch2b_relu, num_filter=256,
-                                               pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn2c_branch2c = mx.symbol.BatchNorm(name='bn2c_branch2c', data=res2c_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale2c_branch2c = bn2c_branch2c
-        res2c = mx.symbol.broadcast_add(name='res2c', *[res2b_relu, scale2c_branch2c])
-        res2c_relu = mx.symbol.Activation(name='res2c_relu', data=res2c, act_type='relu')
-        res3a_branch1 = mx.symbol.Convolution(name='res3a_branch1', data=res2c_relu, num_filter=512, pad=(0, 0),
-                                              kernel=(1, 1), stride=(2, 2), no_bias=True)
-        bn3a_branch1 = mx.symbol.BatchNorm(name='bn3a_branch1', data=res3a_branch1, use_global_stats=True,
-                                           fix_gamma=False, eps = self.eps)
-        scale3a_branch1 = bn3a_branch1
-        res3a_branch2a = mx.symbol.Convolution(name='res3a_branch2a', data=res2c_relu, num_filter=128, pad=(0, 0),
-                                               kernel=(1, 1), stride=(2, 2), no_bias=True)
-        bn3a_branch2a = mx.symbol.BatchNorm(name='bn3a_branch2a', data=res3a_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale3a_branch2a = bn3a_branch2a
-        res3a_branch2a_relu = mx.symbol.Activation(name='res3a_branch2a_relu', data=scale3a_branch2a, act_type='relu')
-        res3a_branch2b = mx.symbol.Convolution(name='res3a_branch2b', data=res3a_branch2a_relu, num_filter=128,
-                                               pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn3a_branch2b = mx.symbol.BatchNorm(name='bn3a_branch2b', data=res3a_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale3a_branch2b = bn3a_branch2b
-        res3a_branch2b_relu = mx.symbol.Activation(name='res3a_branch2b_relu', data=scale3a_branch2b, act_type='relu')
-        res3a_branch2c = mx.symbol.Convolution(name='res3a_branch2c', data=res3a_branch2b_relu, num_filter=512,
-                                               pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3a_branch2c = mx.symbol.BatchNorm(name='bn3a_branch2c', data=res3a_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale3a_branch2c = bn3a_branch2c
-        res3a = mx.symbol.broadcast_add(name='res3a', *[scale3a_branch1, scale3a_branch2c])
-        res3a_relu = mx.symbol.Activation(name='res3a_relu', data=res3a, act_type='relu')
-        res3b1_branch2a = mx.symbol.Convolution(name='res3b1_branch2a', data=res3a_relu, num_filter=128, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b1_branch2a = mx.symbol.BatchNorm(name='bn3b1_branch2a', data=res3b1_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b1_branch2a = bn3b1_branch2a
-        res3b1_branch2a_relu = mx.symbol.Activation(name='res3b1_branch2a_relu', data=scale3b1_branch2a,
-                                                    act_type='relu')
-        res3b1_branch2b = mx.symbol.Convolution(name='res3b1_branch2b', data=res3b1_branch2a_relu, num_filter=128,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn3b1_branch2b = mx.symbol.BatchNorm(name='bn3b1_branch2b', data=res3b1_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b1_branch2b = bn3b1_branch2b
-        res3b1_branch2b_relu = mx.symbol.Activation(name='res3b1_branch2b_relu', data=scale3b1_branch2b,
-                                                    act_type='relu')
-        res3b1_branch2c = mx.symbol.Convolution(name='res3b1_branch2c', data=res3b1_branch2b_relu, num_filter=512,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b1_branch2c = mx.symbol.BatchNorm(name='bn3b1_branch2c', data=res3b1_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b1_branch2c = bn3b1_branch2c
-        res3b1 = mx.symbol.broadcast_add(name='res3b1', *[res3a_relu, scale3b1_branch2c])
-        res3b1_relu = mx.symbol.Activation(name='res3b1_relu', data=res3b1, act_type='relu')
-        res3b2_branch2a = mx.symbol.Convolution(name='res3b2_branch2a', data=res3b1_relu, num_filter=128, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b2_branch2a = mx.symbol.BatchNorm(name='bn3b2_branch2a', data=res3b2_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b2_branch2a = bn3b2_branch2a
-        res3b2_branch2a_relu = mx.symbol.Activation(name='res3b2_branch2a_relu', data=scale3b2_branch2a,
-                                                    act_type='relu')
-        res3b2_branch2b = mx.symbol.Convolution(name='res3b2_branch2b', data=res3b2_branch2a_relu, num_filter=128,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn3b2_branch2b = mx.symbol.BatchNorm(name='bn3b2_branch2b', data=res3b2_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b2_branch2b = bn3b2_branch2b
-        res3b2_branch2b_relu = mx.symbol.Activation(name='res3b2_branch2b_relu', data=scale3b2_branch2b,
-                                                    act_type='relu')
-        res3b2_branch2c = mx.symbol.Convolution(name='res3b2_branch2c', data=res3b2_branch2b_relu, num_filter=512,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b2_branch2c = mx.symbol.BatchNorm(name='bn3b2_branch2c', data=res3b2_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b2_branch2c = bn3b2_branch2c
-        res3b2 = mx.symbol.broadcast_add(name='res3b2', *[res3b1_relu, scale3b2_branch2c])
-        res3b2_relu = mx.symbol.Activation(name='res3b2_relu', data=res3b2, act_type='relu')
-        res3b3_branch2a = mx.symbol.Convolution(name='res3b3_branch2a', data=res3b2_relu, num_filter=128, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b3_branch2a = mx.symbol.BatchNorm(name='bn3b3_branch2a', data=res3b3_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b3_branch2a = bn3b3_branch2a
-        res3b3_branch2a_relu = mx.symbol.Activation(name='res3b3_branch2a_relu', data=scale3b3_branch2a,
-                                                    act_type='relu')
-        res3b3_branch2b = mx.symbol.Convolution(name='res3b3_branch2b', data=res3b3_branch2a_relu, num_filter=128,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn3b3_branch2b = mx.symbol.BatchNorm(name='bn3b3_branch2b', data=res3b3_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b3_branch2b = bn3b3_branch2b
-        res3b3_branch2b_relu = mx.symbol.Activation(name='res3b3_branch2b_relu', data=scale3b3_branch2b,
-                                                    act_type='relu')
-        res3b3_branch2c = mx.symbol.Convolution(name='res3b3_branch2c', data=res3b3_branch2b_relu, num_filter=512,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn3b3_branch2c = mx.symbol.BatchNorm(name='bn3b3_branch2c', data=res3b3_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale3b3_branch2c = bn3b3_branch2c
-        res3b3 = mx.symbol.broadcast_add(name='res3b3', *[res3b2_relu, scale3b3_branch2c])
-        res3b3_relu = mx.symbol.Activation(name='res3b3_relu', data=res3b3, act_type='relu')
-        res4a_branch1 = mx.symbol.Convolution(name='res4a_branch1', data=res3b3_relu, num_filter=1024, pad=(0, 0),
-                                              kernel=(1, 1), stride=(2, 2), no_bias=True)
-        bn4a_branch1 = mx.symbol.BatchNorm(name='bn4a_branch1', data=res4a_branch1, use_global_stats=True,
-                                           fix_gamma=False, eps = self.eps)
-        scale4a_branch1 = bn4a_branch1
-        res4a_branch2a = mx.symbol.Convolution(name='res4a_branch2a', data=res3b3_relu, num_filter=256, pad=(0, 0),
-                                               kernel=(1, 1), stride=(2, 2), no_bias=True)
-        bn4a_branch2a = mx.symbol.BatchNorm(name='bn4a_branch2a', data=res4a_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale4a_branch2a = bn4a_branch2a
-        res4a_branch2a_relu = mx.symbol.Activation(name='res4a_branch2a_relu', data=scale4a_branch2a, act_type='relu')
-        res4a_branch2b = mx.symbol.Convolution(name='res4a_branch2b', data=res4a_branch2a_relu, num_filter=256,
-                                               pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4a_branch2b = mx.symbol.BatchNorm(name='bn4a_branch2b', data=res4a_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale4a_branch2b = bn4a_branch2b
-        res4a_branch2b_relu = mx.symbol.Activation(name='res4a_branch2b_relu', data=scale4a_branch2b, act_type='relu')
-        res4a_branch2c = mx.symbol.Convolution(name='res4a_branch2c', data=res4a_branch2b_relu, num_filter=1024,
-                                               pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4a_branch2c = mx.symbol.BatchNorm(name='bn4a_branch2c', data=res4a_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps = self.eps)
-        scale4a_branch2c = bn4a_branch2c
-        res4a = mx.symbol.broadcast_add(name='res4a', *[scale4a_branch1, scale4a_branch2c])
-        res4a_relu = mx.symbol.Activation(name='res4a_relu', data=res4a, act_type='relu')
-        res4b1_branch2a = mx.symbol.Convolution(name='res4b1_branch2a', data=res4a_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b1_branch2a = mx.symbol.BatchNorm(name='bn4b1_branch2a', data=res4b1_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b1_branch2a = bn4b1_branch2a
-        res4b1_branch2a_relu = mx.symbol.Activation(name='res4b1_branch2a_relu', data=scale4b1_branch2a,
-                                                    act_type='relu')
-        res4b1_branch2b = mx.symbol.Convolution(name='res4b1_branch2b', data=res4b1_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b1_branch2b = mx.symbol.BatchNorm(name='bn4b1_branch2b', data=res4b1_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b1_branch2b = bn4b1_branch2b
-        res4b1_branch2b_relu = mx.symbol.Activation(name='res4b1_branch2b_relu', data=scale4b1_branch2b,
-                                                    act_type='relu')
-        res4b1_branch2c = mx.symbol.Convolution(name='res4b1_branch2c', data=res4b1_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b1_branch2c = mx.symbol.BatchNorm(name='bn4b1_branch2c', data=res4b1_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b1_branch2c = bn4b1_branch2c
-        res4b1 = mx.symbol.broadcast_add(name='res4b1', *[res4a_relu, scale4b1_branch2c])
-        res4b1_relu = mx.symbol.Activation(name='res4b1_relu', data=res4b1, act_type='relu')
-        res4b2_branch2a = mx.symbol.Convolution(name='res4b2_branch2a', data=res4b1_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b2_branch2a = mx.symbol.BatchNorm(name='bn4b2_branch2a', data=res4b2_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b2_branch2a = bn4b2_branch2a
-        res4b2_branch2a_relu = mx.symbol.Activation(name='res4b2_branch2a_relu', data=scale4b2_branch2a,
-                                                    act_type='relu')
-        res4b2_branch2b = mx.symbol.Convolution(name='res4b2_branch2b', data=res4b2_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b2_branch2b = mx.symbol.BatchNorm(name='bn4b2_branch2b', data=res4b2_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b2_branch2b = bn4b2_branch2b
-        res4b2_branch2b_relu = mx.symbol.Activation(name='res4b2_branch2b_relu', data=scale4b2_branch2b,
-                                                    act_type='relu')
-        res4b2_branch2c = mx.symbol.Convolution(name='res4b2_branch2c', data=res4b2_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b2_branch2c = mx.symbol.BatchNorm(name='bn4b2_branch2c', data=res4b2_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b2_branch2c = bn4b2_branch2c
-        res4b2 = mx.symbol.broadcast_add(name='res4b2', *[res4b1_relu, scale4b2_branch2c])
-        res4b2_relu = mx.symbol.Activation(name='res4b2_relu', data=res4b2, act_type='relu')
-        res4b3_branch2a = mx.symbol.Convolution(name='res4b3_branch2a', data=res4b2_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b3_branch2a = mx.symbol.BatchNorm(name='bn4b3_branch2a', data=res4b3_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b3_branch2a = bn4b3_branch2a
-        res4b3_branch2a_relu = mx.symbol.Activation(name='res4b3_branch2a_relu', data=scale4b3_branch2a,
-                                                    act_type='relu')
-        res4b3_branch2b = mx.symbol.Convolution(name='res4b3_branch2b', data=res4b3_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b3_branch2b = mx.symbol.BatchNorm(name='bn4b3_branch2b', data=res4b3_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b3_branch2b = bn4b3_branch2b
-        res4b3_branch2b_relu = mx.symbol.Activation(name='res4b3_branch2b_relu', data=scale4b3_branch2b,
-                                                    act_type='relu')
-        res4b3_branch2c = mx.symbol.Convolution(name='res4b3_branch2c', data=res4b3_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b3_branch2c = mx.symbol.BatchNorm(name='bn4b3_branch2c', data=res4b3_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b3_branch2c = bn4b3_branch2c
-        res4b3 = mx.symbol.broadcast_add(name='res4b3', *[res4b2_relu, scale4b3_branch2c])
-        res4b3_relu = mx.symbol.Activation(name='res4b3_relu', data=res4b3, act_type='relu')
-        res4b4_branch2a = mx.symbol.Convolution(name='res4b4_branch2a', data=res4b3_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b4_branch2a = mx.symbol.BatchNorm(name='bn4b4_branch2a', data=res4b4_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b4_branch2a = bn4b4_branch2a
-        res4b4_branch2a_relu = mx.symbol.Activation(name='res4b4_branch2a_relu', data=scale4b4_branch2a,
-                                                    act_type='relu')
-        res4b4_branch2b = mx.symbol.Convolution(name='res4b4_branch2b', data=res4b4_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b4_branch2b = mx.symbol.BatchNorm(name='bn4b4_branch2b', data=res4b4_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b4_branch2b = bn4b4_branch2b
-        res4b4_branch2b_relu = mx.symbol.Activation(name='res4b4_branch2b_relu', data=scale4b4_branch2b,
-                                                    act_type='relu')
-        res4b4_branch2c = mx.symbol.Convolution(name='res4b4_branch2c', data=res4b4_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b4_branch2c = mx.symbol.BatchNorm(name='bn4b4_branch2c', data=res4b4_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b4_branch2c = bn4b4_branch2c
-        res4b4 = mx.symbol.broadcast_add(name='res4b4', *[res4b3_relu, scale4b4_branch2c])
-        res4b4_relu = mx.symbol.Activation(name='res4b4_relu', data=res4b4, act_type='relu')
-        res4b5_branch2a = mx.symbol.Convolution(name='res4b5_branch2a', data=res4b4_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b5_branch2a = mx.symbol.BatchNorm(name='bn4b5_branch2a', data=res4b5_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b5_branch2a = bn4b5_branch2a
-        res4b5_branch2a_relu = mx.symbol.Activation(name='res4b5_branch2a_relu', data=scale4b5_branch2a,
-                                                    act_type='relu')
-        res4b5_branch2b = mx.symbol.Convolution(name='res4b5_branch2b', data=res4b5_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b5_branch2b = mx.symbol.BatchNorm(name='bn4b5_branch2b', data=res4b5_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b5_branch2b = bn4b5_branch2b
-        res4b5_branch2b_relu = mx.symbol.Activation(name='res4b5_branch2b_relu', data=scale4b5_branch2b,
-                                                    act_type='relu')
-        res4b5_branch2c = mx.symbol.Convolution(name='res4b5_branch2c', data=res4b5_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b5_branch2c = mx.symbol.BatchNorm(name='bn4b5_branch2c', data=res4b5_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b5_branch2c = bn4b5_branch2c
-        res4b5 = mx.symbol.broadcast_add(name='res4b5', *[res4b4_relu, scale4b5_branch2c])
-        res4b5_relu = mx.symbol.Activation(name='res4b5_relu', data=res4b5, act_type='relu')
-        res4b6_branch2a = mx.symbol.Convolution(name='res4b6_branch2a', data=res4b5_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b6_branch2a = mx.symbol.BatchNorm(name='bn4b6_branch2a', data=res4b6_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b6_branch2a = bn4b6_branch2a
-        res4b6_branch2a_relu = mx.symbol.Activation(name='res4b6_branch2a_relu', data=scale4b6_branch2a,
-                                                    act_type='relu')
-        res4b6_branch2b = mx.symbol.Convolution(name='res4b6_branch2b', data=res4b6_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b6_branch2b = mx.symbol.BatchNorm(name='bn4b6_branch2b', data=res4b6_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b6_branch2b = bn4b6_branch2b
-        res4b6_branch2b_relu = mx.symbol.Activation(name='res4b6_branch2b_relu', data=scale4b6_branch2b,
-                                                    act_type='relu')
-        res4b6_branch2c = mx.symbol.Convolution(name='res4b6_branch2c', data=res4b6_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b6_branch2c = mx.symbol.BatchNorm(name='bn4b6_branch2c', data=res4b6_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b6_branch2c = bn4b6_branch2c
-        res4b6 = mx.symbol.broadcast_add(name='res4b6', *[res4b5_relu, scale4b6_branch2c])
-        res4b6_relu = mx.symbol.Activation(name='res4b6_relu', data=res4b6, act_type='relu')
-        res4b7_branch2a = mx.symbol.Convolution(name='res4b7_branch2a', data=res4b6_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b7_branch2a = mx.symbol.BatchNorm(name='bn4b7_branch2a', data=res4b7_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b7_branch2a = bn4b7_branch2a
-        res4b7_branch2a_relu = mx.symbol.Activation(name='res4b7_branch2a_relu', data=scale4b7_branch2a,
-                                                    act_type='relu')
-        res4b7_branch2b = mx.symbol.Convolution(name='res4b7_branch2b', data=res4b7_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b7_branch2b = mx.symbol.BatchNorm(name='bn4b7_branch2b', data=res4b7_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b7_branch2b = bn4b7_branch2b
-        res4b7_branch2b_relu = mx.symbol.Activation(name='res4b7_branch2b_relu', data=scale4b7_branch2b,
-                                                    act_type='relu')
-        res4b7_branch2c = mx.symbol.Convolution(name='res4b7_branch2c', data=res4b7_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b7_branch2c = mx.symbol.BatchNorm(name='bn4b7_branch2c', data=res4b7_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b7_branch2c = bn4b7_branch2c
-        res4b7 = mx.symbol.broadcast_add(name='res4b7', *[res4b6_relu, scale4b7_branch2c])
-        res4b7_relu = mx.symbol.Activation(name='res4b7_relu', data=res4b7, act_type='relu')
-        res4b8_branch2a = mx.symbol.Convolution(name='res4b8_branch2a', data=res4b7_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b8_branch2a = mx.symbol.BatchNorm(name='bn4b8_branch2a', data=res4b8_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b8_branch2a = bn4b8_branch2a
-        res4b8_branch2a_relu = mx.symbol.Activation(name='res4b8_branch2a_relu', data=scale4b8_branch2a,
-                                                    act_type='relu')
-        res4b8_branch2b = mx.symbol.Convolution(name='res4b8_branch2b', data=res4b8_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b8_branch2b = mx.symbol.BatchNorm(name='bn4b8_branch2b', data=res4b8_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b8_branch2b = bn4b8_branch2b
-        res4b8_branch2b_relu = mx.symbol.Activation(name='res4b8_branch2b_relu', data=scale4b8_branch2b,
-                                                    act_type='relu')
-        res4b8_branch2c = mx.symbol.Convolution(name='res4b8_branch2c', data=res4b8_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b8_branch2c = mx.symbol.BatchNorm(name='bn4b8_branch2c', data=res4b8_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b8_branch2c = bn4b8_branch2c
-        res4b8 = mx.symbol.broadcast_add(name='res4b8', *[res4b7_relu, scale4b8_branch2c])
-        res4b8_relu = mx.symbol.Activation(name='res4b8_relu', data=res4b8, act_type='relu')
-        res4b9_branch2a = mx.symbol.Convolution(name='res4b9_branch2a', data=res4b8_relu, num_filter=256, pad=(0, 0),
-                                                kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b9_branch2a = mx.symbol.BatchNorm(name='bn4b9_branch2a', data=res4b9_branch2a, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b9_branch2a = bn4b9_branch2a
-        res4b9_branch2a_relu = mx.symbol.Activation(name='res4b9_branch2a_relu', data=scale4b9_branch2a,
-                                                    act_type='relu')
-        res4b9_branch2b = mx.symbol.Convolution(name='res4b9_branch2b', data=res4b9_branch2a_relu, num_filter=256,
-                                                pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b9_branch2b = mx.symbol.BatchNorm(name='bn4b9_branch2b', data=res4b9_branch2b, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b9_branch2b = bn4b9_branch2b
-        res4b9_branch2b_relu = mx.symbol.Activation(name='res4b9_branch2b_relu', data=scale4b9_branch2b,
-                                                    act_type='relu')
-        res4b9_branch2c = mx.symbol.Convolution(name='res4b9_branch2c', data=res4b9_branch2b_relu, num_filter=1024,
-                                                pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b9_branch2c = mx.symbol.BatchNorm(name='bn4b9_branch2c', data=res4b9_branch2c, use_global_stats=True,
-                                             fix_gamma=False, eps = self.eps)
-        scale4b9_branch2c = bn4b9_branch2c
-        res4b9 = mx.symbol.broadcast_add(name='res4b9', *[res4b8_relu, scale4b9_branch2c])
-        res4b9_relu = mx.symbol.Activation(name='res4b9_relu', data=res4b9, act_type='relu')
-        res4b10_branch2a = mx.symbol.Convolution(name='res4b10_branch2a', data=res4b9_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b10_branch2a = mx.symbol.BatchNorm(name='bn4b10_branch2a', data=res4b10_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b10_branch2a = bn4b10_branch2a
-        res4b10_branch2a_relu = mx.symbol.Activation(name='res4b10_branch2a_relu', data=scale4b10_branch2a,
-                                                     act_type='relu')
-        res4b10_branch2b = mx.symbol.Convolution(name='res4b10_branch2b', data=res4b10_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b10_branch2b = mx.symbol.BatchNorm(name='bn4b10_branch2b', data=res4b10_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b10_branch2b = bn4b10_branch2b
-        res4b10_branch2b_relu = mx.symbol.Activation(name='res4b10_branch2b_relu', data=scale4b10_branch2b,
-                                                     act_type='relu')
-        res4b10_branch2c = mx.symbol.Convolution(name='res4b10_branch2c', data=res4b10_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b10_branch2c = mx.symbol.BatchNorm(name='bn4b10_branch2c', data=res4b10_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b10_branch2c = bn4b10_branch2c
-        res4b10 = mx.symbol.broadcast_add(name='res4b10', *[res4b9_relu, scale4b10_branch2c])
-        res4b10_relu = mx.symbol.Activation(name='res4b10_relu', data=res4b10, act_type='relu')
-        res4b11_branch2a = mx.symbol.Convolution(name='res4b11_branch2a', data=res4b10_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b11_branch2a = mx.symbol.BatchNorm(name='bn4b11_branch2a', data=res4b11_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b11_branch2a = bn4b11_branch2a
-        res4b11_branch2a_relu = mx.symbol.Activation(name='res4b11_branch2a_relu', data=scale4b11_branch2a,
-                                                     act_type='relu')
-        res4b11_branch2b = mx.symbol.Convolution(name='res4b11_branch2b', data=res4b11_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b11_branch2b = mx.symbol.BatchNorm(name='bn4b11_branch2b', data=res4b11_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b11_branch2b = bn4b11_branch2b
-        res4b11_branch2b_relu = mx.symbol.Activation(name='res4b11_branch2b_relu', data=scale4b11_branch2b,
-                                                     act_type='relu')
-        res4b11_branch2c = mx.symbol.Convolution(name='res4b11_branch2c', data=res4b11_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b11_branch2c = mx.symbol.BatchNorm(name='bn4b11_branch2c', data=res4b11_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b11_branch2c = bn4b11_branch2c
-        res4b11 = mx.symbol.broadcast_add(name='res4b11', *[res4b10_relu, scale4b11_branch2c])
-        res4b11_relu = mx.symbol.Activation(name='res4b11_relu', data=res4b11, act_type='relu')
-        res4b12_branch2a = mx.symbol.Convolution(name='res4b12_branch2a', data=res4b11_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b12_branch2a = mx.symbol.BatchNorm(name='bn4b12_branch2a', data=res4b12_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b12_branch2a = bn4b12_branch2a
-        res4b12_branch2a_relu = mx.symbol.Activation(name='res4b12_branch2a_relu', data=scale4b12_branch2a,
-                                                     act_type='relu')
-        res4b12_branch2b = mx.symbol.Convolution(name='res4b12_branch2b', data=res4b12_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b12_branch2b = mx.symbol.BatchNorm(name='bn4b12_branch2b', data=res4b12_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b12_branch2b = bn4b12_branch2b
-        res4b12_branch2b_relu = mx.symbol.Activation(name='res4b12_branch2b_relu', data=scale4b12_branch2b,
-                                                     act_type='relu')
-        res4b12_branch2c = mx.symbol.Convolution(name='res4b12_branch2c', data=res4b12_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b12_branch2c = mx.symbol.BatchNorm(name='bn4b12_branch2c', data=res4b12_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b12_branch2c = bn4b12_branch2c
-        res4b12 = mx.symbol.broadcast_add(name='res4b12', *[res4b11_relu, scale4b12_branch2c])
-        res4b12_relu = mx.symbol.Activation(name='res4b12_relu', data=res4b12, act_type='relu')
-        res4b13_branch2a = mx.symbol.Convolution(name='res4b13_branch2a', data=res4b12_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b13_branch2a = mx.symbol.BatchNorm(name='bn4b13_branch2a', data=res4b13_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b13_branch2a = bn4b13_branch2a
-        res4b13_branch2a_relu = mx.symbol.Activation(name='res4b13_branch2a_relu', data=scale4b13_branch2a,
-                                                     act_type='relu')
-        res4b13_branch2b = mx.symbol.Convolution(name='res4b13_branch2b', data=res4b13_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b13_branch2b = mx.symbol.BatchNorm(name='bn4b13_branch2b', data=res4b13_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b13_branch2b = bn4b13_branch2b
-        res4b13_branch2b_relu = mx.symbol.Activation(name='res4b13_branch2b_relu', data=scale4b13_branch2b,
-                                                     act_type='relu')
-        res4b13_branch2c = mx.symbol.Convolution(name='res4b13_branch2c', data=res4b13_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b13_branch2c = mx.symbol.BatchNorm(name='bn4b13_branch2c', data=res4b13_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b13_branch2c = bn4b13_branch2c
-        res4b13 = mx.symbol.broadcast_add(name='res4b13', *[res4b12_relu, scale4b13_branch2c])
-        res4b13_relu = mx.symbol.Activation(name='res4b13_relu', data=res4b13, act_type='relu')
-        res4b14_branch2a = mx.symbol.Convolution(name='res4b14_branch2a', data=res4b13_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b14_branch2a = mx.symbol.BatchNorm(name='bn4b14_branch2a', data=res4b14_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b14_branch2a = bn4b14_branch2a
-        res4b14_branch2a_relu = mx.symbol.Activation(name='res4b14_branch2a_relu', data=scale4b14_branch2a,
-                                                     act_type='relu')
-        res4b14_branch2b = mx.symbol.Convolution(name='res4b14_branch2b', data=res4b14_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b14_branch2b = mx.symbol.BatchNorm(name='bn4b14_branch2b', data=res4b14_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b14_branch2b = bn4b14_branch2b
-        res4b14_branch2b_relu = mx.symbol.Activation(name='res4b14_branch2b_relu', data=scale4b14_branch2b,
-                                                     act_type='relu')
-        res4b14_branch2c = mx.symbol.Convolution(name='res4b14_branch2c', data=res4b14_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b14_branch2c = mx.symbol.BatchNorm(name='bn4b14_branch2c', data=res4b14_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b14_branch2c = bn4b14_branch2c
-        res4b14 = mx.symbol.broadcast_add(name='res4b14', *[res4b13_relu, scale4b14_branch2c])
-        res4b14_relu = mx.symbol.Activation(name='res4b14_relu', data=res4b14, act_type='relu')
-        res4b15_branch2a = mx.symbol.Convolution(name='res4b15_branch2a', data=res4b14_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b15_branch2a = mx.symbol.BatchNorm(name='bn4b15_branch2a', data=res4b15_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b15_branch2a = bn4b15_branch2a
-        res4b15_branch2a_relu = mx.symbol.Activation(name='res4b15_branch2a_relu', data=scale4b15_branch2a,
-                                                     act_type='relu')
-        res4b15_branch2b = mx.symbol.Convolution(name='res4b15_branch2b', data=res4b15_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b15_branch2b = mx.symbol.BatchNorm(name='bn4b15_branch2b', data=res4b15_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b15_branch2b = bn4b15_branch2b
-        res4b15_branch2b_relu = mx.symbol.Activation(name='res4b15_branch2b_relu', data=scale4b15_branch2b,
-                                                     act_type='relu')
-        res4b15_branch2c = mx.symbol.Convolution(name='res4b15_branch2c', data=res4b15_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b15_branch2c = mx.symbol.BatchNorm(name='bn4b15_branch2c', data=res4b15_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b15_branch2c = bn4b15_branch2c
-        res4b15 = mx.symbol.broadcast_add(name='res4b15', *[res4b14_relu, scale4b15_branch2c])
-        res4b15_relu = mx.symbol.Activation(name='res4b15_relu', data=res4b15, act_type='relu')
-        res4b16_branch2a = mx.symbol.Convolution(name='res4b16_branch2a', data=res4b15_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b16_branch2a = mx.symbol.BatchNorm(name='bn4b16_branch2a', data=res4b16_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b16_branch2a = bn4b16_branch2a
-        res4b16_branch2a_relu = mx.symbol.Activation(name='res4b16_branch2a_relu', data=scale4b16_branch2a,
-                                                     act_type='relu')
-        res4b16_branch2b = mx.symbol.Convolution(name='res4b16_branch2b', data=res4b16_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b16_branch2b = mx.symbol.BatchNorm(name='bn4b16_branch2b', data=res4b16_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b16_branch2b = bn4b16_branch2b
-        res4b16_branch2b_relu = mx.symbol.Activation(name='res4b16_branch2b_relu', data=scale4b16_branch2b,
-                                                     act_type='relu')
-        res4b16_branch2c = mx.symbol.Convolution(name='res4b16_branch2c', data=res4b16_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b16_branch2c = mx.symbol.BatchNorm(name='bn4b16_branch2c', data=res4b16_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b16_branch2c = bn4b16_branch2c
-        res4b16 = mx.symbol.broadcast_add(name='res4b16', *[res4b15_relu, scale4b16_branch2c])
-        res4b16_relu = mx.symbol.Activation(name='res4b16_relu', data=res4b16, act_type='relu')
-        res4b17_branch2a = mx.symbol.Convolution(name='res4b17_branch2a', data=res4b16_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b17_branch2a = mx.symbol.BatchNorm(name='bn4b17_branch2a', data=res4b17_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b17_branch2a = bn4b17_branch2a
-        res4b17_branch2a_relu = mx.symbol.Activation(name='res4b17_branch2a_relu', data=scale4b17_branch2a,
-                                                     act_type='relu')
-        res4b17_branch2b = mx.symbol.Convolution(name='res4b17_branch2b', data=res4b17_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b17_branch2b = mx.symbol.BatchNorm(name='bn4b17_branch2b', data=res4b17_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b17_branch2b = bn4b17_branch2b
-        res4b17_branch2b_relu = mx.symbol.Activation(name='res4b17_branch2b_relu', data=scale4b17_branch2b,
-                                                     act_type='relu')
-        res4b17_branch2c = mx.symbol.Convolution(name='res4b17_branch2c', data=res4b17_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b17_branch2c = mx.symbol.BatchNorm(name='bn4b17_branch2c', data=res4b17_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b17_branch2c = bn4b17_branch2c
-        res4b17 = mx.symbol.broadcast_add(name='res4b17', *[res4b16_relu, scale4b17_branch2c])
-        res4b17_relu = mx.symbol.Activation(name='res4b17_relu', data=res4b17, act_type='relu')
-        res4b18_branch2a = mx.symbol.Convolution(name='res4b18_branch2a', data=res4b17_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b18_branch2a = mx.symbol.BatchNorm(name='bn4b18_branch2a', data=res4b18_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b18_branch2a = bn4b18_branch2a
-        res4b18_branch2a_relu = mx.symbol.Activation(name='res4b18_branch2a_relu', data=scale4b18_branch2a,
-                                                     act_type='relu')
-        res4b18_branch2b = mx.symbol.Convolution(name='res4b18_branch2b', data=res4b18_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b18_branch2b = mx.symbol.BatchNorm(name='bn4b18_branch2b', data=res4b18_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b18_branch2b = bn4b18_branch2b
-        res4b18_branch2b_relu = mx.symbol.Activation(name='res4b18_branch2b_relu', data=scale4b18_branch2b,
-                                                     act_type='relu')
-        res4b18_branch2c = mx.symbol.Convolution(name='res4b18_branch2c', data=res4b18_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b18_branch2c = mx.symbol.BatchNorm(name='bn4b18_branch2c', data=res4b18_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b18_branch2c = bn4b18_branch2c
-        res4b18 = mx.symbol.broadcast_add(name='res4b18', *[res4b17_relu, scale4b18_branch2c])
-        res4b18_relu = mx.symbol.Activation(name='res4b18_relu', data=res4b18, act_type='relu')
-        res4b19_branch2a = mx.symbol.Convolution(name='res4b19_branch2a', data=res4b18_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b19_branch2a = mx.symbol.BatchNorm(name='bn4b19_branch2a', data=res4b19_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b19_branch2a = bn4b19_branch2a
-        res4b19_branch2a_relu = mx.symbol.Activation(name='res4b19_branch2a_relu', data=scale4b19_branch2a,
-                                                     act_type='relu')
-        res4b19_branch2b = mx.symbol.Convolution(name='res4b19_branch2b', data=res4b19_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b19_branch2b = mx.symbol.BatchNorm(name='bn4b19_branch2b', data=res4b19_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b19_branch2b = bn4b19_branch2b
-        res4b19_branch2b_relu = mx.symbol.Activation(name='res4b19_branch2b_relu', data=scale4b19_branch2b,
-                                                     act_type='relu')
-        res4b19_branch2c = mx.symbol.Convolution(name='res4b19_branch2c', data=res4b19_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b19_branch2c = mx.symbol.BatchNorm(name='bn4b19_branch2c', data=res4b19_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b19_branch2c = bn4b19_branch2c
-        res4b19 = mx.symbol.broadcast_add(name='res4b19', *[res4b18_relu, scale4b19_branch2c])
-        res4b19_relu = mx.symbol.Activation(name='res4b19_relu', data=res4b19, act_type='relu')
-        res4b20_branch2a = mx.symbol.Convolution(name='res4b20_branch2a', data=res4b19_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b20_branch2a = mx.symbol.BatchNorm(name='bn4b20_branch2a', data=res4b20_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b20_branch2a = bn4b20_branch2a
-        res4b20_branch2a_relu = mx.symbol.Activation(name='res4b20_branch2a_relu', data=scale4b20_branch2a,
-                                                     act_type='relu')
-        res4b20_branch2b = mx.symbol.Convolution(name='res4b20_branch2b', data=res4b20_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b20_branch2b = mx.symbol.BatchNorm(name='bn4b20_branch2b', data=res4b20_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b20_branch2b = bn4b20_branch2b
-        res4b20_branch2b_relu = mx.symbol.Activation(name='res4b20_branch2b_relu', data=scale4b20_branch2b,
-                                                     act_type='relu')
-        res4b20_branch2c = mx.symbol.Convolution(name='res4b20_branch2c', data=res4b20_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b20_branch2c = mx.symbol.BatchNorm(name='bn4b20_branch2c', data=res4b20_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b20_branch2c = bn4b20_branch2c
-        res4b20 = mx.symbol.broadcast_add(name='res4b20', *[res4b19_relu, scale4b20_branch2c])
-        res4b20_relu = mx.symbol.Activation(name='res4b20_relu', data=res4b20, act_type='relu')
-        res4b21_branch2a = mx.symbol.Convolution(name='res4b21_branch2a', data=res4b20_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b21_branch2a = mx.symbol.BatchNorm(name='bn4b21_branch2a', data=res4b21_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b21_branch2a = bn4b21_branch2a
-        res4b21_branch2a_relu = mx.symbol.Activation(name='res4b21_branch2a_relu', data=scale4b21_branch2a,
-                                                     act_type='relu')
-        res4b21_branch2b = mx.symbol.Convolution(name='res4b21_branch2b', data=res4b21_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b21_branch2b = mx.symbol.BatchNorm(name='bn4b21_branch2b', data=res4b21_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b21_branch2b = bn4b21_branch2b
-        res4b21_branch2b_relu = mx.symbol.Activation(name='res4b21_branch2b_relu', data=scale4b21_branch2b,
-                                                     act_type='relu')
-        res4b21_branch2c = mx.symbol.Convolution(name='res4b21_branch2c', data=res4b21_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b21_branch2c = mx.symbol.BatchNorm(name='bn4b21_branch2c', data=res4b21_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b21_branch2c = bn4b21_branch2c
-        res4b21 = mx.symbol.broadcast_add(name='res4b21', *[res4b20_relu, scale4b21_branch2c])
-        res4b21_relu = mx.symbol.Activation(name='res4b21_relu', data=res4b21, act_type='relu')
-        res4b22_branch2a = mx.symbol.Convolution(name='res4b22_branch2a', data=res4b21_relu, num_filter=256, pad=(0, 0),
-                                                 kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b22_branch2a = mx.symbol.BatchNorm(name='bn4b22_branch2a', data=res4b22_branch2a, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b22_branch2a = bn4b22_branch2a
-        res4b22_branch2a_relu = mx.symbol.Activation(name='res4b22_branch2a_relu', data=scale4b22_branch2a,
-                                                     act_type='relu')
-        res4b22_branch2b = mx.symbol.Convolution(name='res4b22_branch2b', data=res4b22_branch2a_relu, num_filter=256,
-                                                 pad=(1, 1), kernel=(3, 3), stride=(1, 1), no_bias=True)
-        bn4b22_branch2b = mx.symbol.BatchNorm(name='bn4b22_branch2b', data=res4b22_branch2b, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b22_branch2b = bn4b22_branch2b
-        res4b22_branch2b_relu = mx.symbol.Activation(name='res4b22_branch2b_relu', data=scale4b22_branch2b,
-                                                     act_type='relu')
-        res4b22_branch2c = mx.symbol.Convolution(name='res4b22_branch2c', data=res4b22_branch2b_relu, num_filter=1024,
-                                                 pad=(0, 0), kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn4b22_branch2c = mx.symbol.BatchNorm(name='bn4b22_branch2c', data=res4b22_branch2c, use_global_stats=True,
-                                              fix_gamma=False, eps = self.eps)
-        scale4b22_branch2c = bn4b22_branch2c
-        res4b22 = mx.symbol.broadcast_add(name='res4b22', *[res4b21_relu, scale4b22_branch2c])
-        res4b22_relu = mx.symbol.Activation(name='res4b22_relu', data=res4b22, act_type='relu')
-
-        res5a_branch1 = mx.symbol.Convolution(name='res5a_branch1', data=res4b22_relu, num_filter=2048, pad=(0, 0),
-                                              kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5a_branch1 = mx.symbol.BatchNorm(name='bn5a_branch1', data=res5a_branch1, use_global_stats=True, fix_gamma=False, eps=self.eps)
-        scale5a_branch1 = bn5a_branch1
-        res5a_branch2a = mx.symbol.Convolution(name='res5a_branch2a', data=res4b22_relu, num_filter=512, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5a_branch2a = mx.symbol.BatchNorm(name='bn5a_branch2a', data=res5a_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5a_branch2a = bn5a_branch2a
-        res5a_branch2a_relu = mx.symbol.Activation(name='res5a_branch2a_relu', data=scale5a_branch2a, act_type='relu')
-        res5a_branch2b_offset_weight = mx.symbol.Variable('res5a_branch2b_offset_weight', lr_mult=1.0)
-        res5a_branch2b_offset_bias = mx.symbol.Variable('res5a_branch2b_offset_bias', lr_mult=2.0)
-        res5a_branch2b_offset = mx.symbol.Convolution(name='res5a_branch2b_offset', data = res5a_branch2a_relu,
-                                                      num_filter=18, pad=(1, 1), kernel=(3, 3), stride=(1, 1),
-                                                      weight=res5a_branch2b_offset_weight, bias=res5a_branch2b_offset_bias)
-        res5a_branch2b = mx.contrib.symbol.DeformableConvolution(name='res5a_branch2b', data=res5a_branch2a_relu, offset=res5a_branch2b_offset,
-                                                                 num_filter=512, pad=(2, 2), kernel=(3, 3), num_deformable_group=1,
-                                                                 stride=(1, 1), dilate=(2, 2), no_bias=True)
-        bn5a_branch2b = mx.symbol.BatchNorm(name='bn5a_branch2b', data=res5a_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5a_branch2b = bn5a_branch2b
-        res5a_branch2b_relu = mx.symbol.Activation(name='res5a_branch2b_relu', data=scale5a_branch2b, act_type='relu')
-        res5a_branch2c = mx.symbol.Convolution(name='res5a_branch2c', data=res5a_branch2b_relu, num_filter=2048, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5a_branch2c = mx.symbol.BatchNorm(name='bn5a_branch2c', data=res5a_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5a_branch2c = bn5a_branch2c
-        res5a = mx.symbol.broadcast_add(name='res5a', *[scale5a_branch1, scale5a_branch2c])
-        res5a_relu = mx.symbol.Activation(name='res5a_relu', data=res5a, act_type='relu')
-        res5b_branch2a = mx.symbol.Convolution(name='res5b_branch2a', data=res5a_relu, num_filter=512, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5b_branch2a = mx.symbol.BatchNorm(name='bn5b_branch2a', data=res5b_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5b_branch2a = bn5b_branch2a
-        res5b_branch2a_relu = mx.symbol.Activation(name='res5b_branch2a_relu', data=scale5b_branch2a, act_type='relu')
-        res5b_branch2b_offset_weight = mx.symbol.Variable('res5b_branch2b_offset_weight', lr_mult=1.0)
-        res5b_branch2b_offset_bias = mx.symbol.Variable('res5b_branch2b_offset_bias', lr_mult=2.0)
-        res5b_branch2b_offset = mx.symbol.Convolution(name='res5b_branch2b_offset', data = res5b_branch2a_relu,
-                                                      num_filter=18, pad=(1, 1), kernel=(3, 3), stride=(1, 1),
-                                                      weight=res5b_branch2b_offset_weight, bias=res5b_branch2b_offset_bias)
-        res5b_branch2b = mx.contrib.symbol.DeformableConvolution(name='res5b_branch2b', data=res5b_branch2a_relu, offset=res5b_branch2b_offset,
-                                                                 num_filter=512, pad=(2, 2), kernel=(3, 3), num_deformable_group=1,
-                                                                 stride=(1, 1), dilate=(2, 2), no_bias=True)
-        bn5b_branch2b = mx.symbol.BatchNorm(name='bn5b_branch2b', data=res5b_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5b_branch2b = bn5b_branch2b
-        res5b_branch2b_relu = mx.symbol.Activation(name='res5b_branch2b_relu', data=scale5b_branch2b, act_type='relu')
-        res5b_branch2c = mx.symbol.Convolution(name='res5b_branch2c', data=res5b_branch2b_relu, num_filter=2048, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5b_branch2c = mx.symbol.BatchNorm(name='bn5b_branch2c', data=res5b_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5b_branch2c = bn5b_branch2c
-        res5b = mx.symbol.broadcast_add(name='res5b', *[res5a_relu, scale5b_branch2c])
-        res5b_relu = mx.symbol.Activation(name='res5b_relu', data=res5b, act_type='relu')
-        res5c_branch2a = mx.symbol.Convolution(name='res5c_branch2a', data=res5b_relu, num_filter=512, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5c_branch2a = mx.symbol.BatchNorm(name='bn5c_branch2a', data=res5c_branch2a, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5c_branch2a = bn5c_branch2a
-        res5c_branch2a_relu = mx.symbol.Activation(name='res5c_branch2a_relu', data=scale5c_branch2a, act_type='relu')
-        res5c_branch2b_offset_weight = mx.symbol.Variable('res5c_branch2b_offset_weight', lr_mult=1.0)
-        res5c_branch2b_offset_bias = mx.symbol.Variable('res5c_branch2b_offset_bias', lr_mult=2.0)
-        res5c_branch2b_offset = mx.symbol.Convolution(name='res5c_branch2b_offset', data = res5c_branch2a_relu,
-                                                      num_filter=18, pad=(1, 1), kernel=(3, 3), stride=(1, 1),
-                                                      weight=res5c_branch2b_offset_weight, bias=res5c_branch2b_offset_bias)
-        res5c_branch2b = mx.contrib.symbol.DeformableConvolution(name='res5c_branch2b', data=res5c_branch2a_relu, offset=res5c_branch2b_offset,
-                                                                 num_filter=512, pad=(2, 2), kernel=(3, 3), num_deformable_group=1,
-                                                                 stride=(1, 1), dilate=(2, 2), no_bias=True)
-        bn5c_branch2b = mx.symbol.BatchNorm(name='bn5c_branch2b', data=res5c_branch2b, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5c_branch2b = bn5c_branch2b
-        res5c_branch2b_relu = mx.symbol.Activation(name='res5c_branch2b_relu', data=scale5c_branch2b, act_type='relu')
-        res5c_branch2c = mx.symbol.Convolution(name='res5c_branch2c', data=res5c_branch2b_relu, num_filter=2048, pad=(0, 0),
-                                               kernel=(1, 1), stride=(1, 1), no_bias=True)
-        bn5c_branch2c = mx.symbol.BatchNorm(name='bn5c_branch2c', data=res5c_branch2c, use_global_stats=True,
-                                            fix_gamma=False, eps=self.eps)
-        scale5c_branch2c = bn5c_branch2c
-        res5c = mx.symbol.broadcast_add(name='res5c', *[res5b_relu, scale5c_branch2c])
-        res5c_relu = mx.symbol.Activation(name='res5c_relu', data=res5c, act_type='relu')
-
-        return res5c_relu
+    def get_cls_conv(self, data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+               dtype='float32', **kwargs):
+        
+        return get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs)
+        
+        
+    def get_seg_conv(self, data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs):
+        
+        return get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
+               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs)
+        
 
     def get_train_symbol(self, num_classes):
         """
@@ -975,6 +497,41 @@ class resnet_v1_101_deeplab_dcn(Symbol):
         upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(32, 32), stride=(16, 16),
                                              num_group=num_classes, no_bias=True, name='upsampling',
                                              attr={'lr_mult': '0.0'}, workspace=self.workspace)
+        
+        ## DeepLab v2 Fix:
+        '''
+        score_0_bias = 
+        score_0_weight = 
+        score_0 = mx.symbol.Convolution(data= , kernel=(3,3), dilate=(dilate[0],dilate[0]), pad=(dilate[0],dilate[0]) )
+        
+        score = score0
+        
+        for i in range(1, len (final_dilate_list) ):
+        
+            exec'' score_i_bias = 
+            exec'' score_i_weight = 
+            exec'' score_i = mx.symbol.Convolution(data= , kernel=(3,3), \
+                                                   dilate=(dilate[i],dilate[i]), pad=(dilate[i],dilate[i]) )
+            score = score + score_i
+            
+        # Todo: Fix How to Upsampling?
+        
+        
+        upsampling_v2 = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(16, 16), stride=(16, 16),
+                                             num_group=num_classes, no_bias=True, name='upsampling',
+                                             attr={'lr_mult': '0.0'}, workspace=self.workspace)
+        
+        ### 
+        
+        '''
+        
+        
+        
+        
+        
+        
+        
+
 
         croped_score = mx.symbol.Crop(*[upsampling, data], offset=(8, 8), name='croped_score')
         softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
