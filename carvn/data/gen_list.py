@@ -41,7 +41,7 @@ val_count = len(id2images)//10
 for i in xrange(len(id2images)):
   f = val_f if i<val_count else train_f
   image_id = id2images[i][0]
-  idxs = range(16)
+  idxs = range(1, 17)
   random.Random(SEED).shuffle(idxs)
   for idx in idxs:
     data_image = os.path.join(DATA_ROOT, 'train', "%s_%02d.jpg" % (image_id, idx))
