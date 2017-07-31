@@ -29,25 +29,24 @@ for image in os.listdir(train_image_dir):
   basename = image.split('.')[0]
   image_id, pos = basename.split('_')
   if image_id not in id2images:
-    id2images[image_id] = []
-  id2images[image_id].append(os.path.join(train_image_dir, image))
+    id2images[image_id] = 1
+  #id2images[image_id].append(os.path.join(train_image_dir, image))
+  #id2images[image_id].append( (image_id, pos) )
 
+id2images = sorted(id2images.items(), key = lambda x: x[0])
+random.Random(SEED).shuffle(id2images)
 train_f = open('train.lst', 'w')
 val_f = open('val.lst', 'w')
-train_num = 0
-val_num = 0
-for image_id, images in id2images.iteritems():
-  images = sorted(images)
-  random.Random(SEED).shuffle(images)
-  for i, image in enumerate(images):
-    mask_image = os.path.join(DATA_ROOT, 'train_masks', "%s_mask.gif" % image.split('/')[-1][0:-4])
-    if i<2:
-      val_f.write("%d\t%s\t%s\n" % (val_num, image, mask_image))
-      val_num+=1
-    else:
-      train_f.write("%d\t%s\t%s\n" % (train_num, image, mask_image))
-      train_num+=1
+val_count = len(id2images)//10
+for i in xrange(len(id2images)):
+  f = val_f if i<val_count else train_f
+  image_id = id2images[i][0]
+  idxs = range(16)
+  random.Random(SEED).shuffle(idxs)
+  for idx in idxs:
+    data_image = os.path.join(DATA_ROOT, 'train', "%s_%02d.jpg" % (image_id, idx))
+    mask_image = os.path.join(DATA_ROOT, 'train_masks', "%s_%02d_mask.gif" % (image_id, idx))
+    f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
 
 train_f.close()
 val_f.close()
-
