@@ -12,9 +12,17 @@ from dice_metric import DiceMetric
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-ctx = mx.gpu(5)
 
 def main():
+    gpu_list = []
+    _gpus = args.gpu.split(',')
+    for _gpu in _gpus:
+      _gpu = _gpu.strip()
+      if len(_gpu)==0:
+        continue
+      gpu_list.append(int(_gpu))
+    assert len(gpu_list)>0
+    ctx = mx.gpu(gpu_list[0])
     carvn_root = ''
     num_classes = 2
     cutoff = None if args.cutoff==0 else args.cutoff
@@ -90,6 +98,8 @@ if __name__ == "__main__":
         help='directory to save model.')
     parser.add_argument('--cutoff', type=int, default=800,
         help='cutoff size.')
+    parser.add_argument('--gpu', default='',
+        help='gpu for use.')
     parser.add_argument('--retrain', action='store_true', default=False,
         help='true means continue training.')
     args = parser.parse_args()
