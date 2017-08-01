@@ -3,6 +3,7 @@
 import mxnet as mx
 import numpy as np
 import sys, os
+import random
 from mxnet.io import DataIter
 import mxnet.ndarray as nd
 from PIL import Image
@@ -156,6 +157,7 @@ class BatchFileIter(DataIter):
 
     def reset(self):
         """Resets the iterator to the beginning of the data."""
+        random.shuffle(self.seq)
         self.cur = 0
 
     def next_sample(self):
