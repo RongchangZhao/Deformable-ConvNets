@@ -8,23 +8,26 @@ import symbol_fcnxs
 import init_fcnxs
 from data import FileIter
 from solver import Solver
+from dice_metric import DiceMetric
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-ctx = mx.gpu(1)
+ctx = mx.gpu(5)
 
 def main():
     #carvn_root = '/raid5data/dplearn/carvn'
     carvn_root = ''
     num_classes = 2
+    model_dir = "./model3"
+    cutoff = 800
     fcnxs = symbol_fcnxs.get_fcn32s_symbol(numclass=num_classes, workspace_default=1536)
-    fcnxs_model_prefix = "model_pascal/FCN32s_VGG16"
+    fcnxs_model_prefix = model_dir+"/FCN32s_VGG16"
     if args.model == "fcn16s":
         fcnxs = symbol_fcnxs.get_fcn16s_symbol(numclass=num_classes, workspace_default=1536)
-        fcnxs_model_prefix = "model_pascal/FCN16s_VGG16"
+        fcnxs_model_prefix = model_dir+"/FCN16s_VGG16"
     elif args.model == "fcn8s":
         fcnxs = symbol_fcnxs.get_fcn8s_symbol(numclass=num_classes, workspace_default=1536)
-        fcnxs_model_prefix = "model_pascal/FCN8s_VGG16"
+        fcnxs_model_prefix = model_dir+"/FCN8s_VGG16"
     arg_names = fcnxs.list_arguments()
     _, fcnxs_args, fcnxs_auxs = mx.model.load_checkpoint(args.prefix, args.epoch)
     if not args.retrain:
@@ -35,12 +38,13 @@ def main():
     train_dataiter = FileIter(
         root_dir             = carvn_root,
         flist_name           = "../data/train.lst",
-        cut_off_size         = 800,
+        cut_off_size         = cutoff,
         rgb_mean             = (123.68, 116.779, 103.939),
         )
     val_dataiter = FileIter(
         root_dir             = carvn_root,
         flist_name           = "../data/val.lst",
+        cut_off_size         = cutoff,
         rgb_mean             = (123.68, 116.779, 103.939),
         )
     model = Solver(
@@ -50,12 +54,14 @@ def main():
         num_epoch           = 50,
         arg_params          = fcnxs_args,
         aux_params          = fcnxs_auxs,
-        learning_rate       = 1e-10,
+        learning_rate       = 1e-4,
         momentum            = 0.99,
         wd                  = 0.0005)
+    _metric = DiceMetric()
     model.fit(
         train_data          = train_dataiter,
         eval_data           = val_dataiter,
+        eval_metric         = _metric,
         batch_end_callback  = mx.callback.Speedometer(1, 10),
         epoch_end_callback  = mx.callback.do_checkpoint(fcnxs_model_prefix))
 
