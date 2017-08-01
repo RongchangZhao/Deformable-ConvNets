@@ -205,10 +205,11 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
 
         
-def irnext(units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
+def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
                lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, taskmode='CLS',
            seg_stride_list = [1,2,2,1],
            bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
+    
     """Return ResNeXt symbol of
     Parameters
     ----------
@@ -254,7 +255,10 @@ def irnext(units, num_stages, filter_list, num_classes, num_group, bottle_neck=1
 
     num_unit = len(units)
     assert(num_unit == num_stages)
-    data = mx.sym.Variable(name='data')
+    
+    # Fix Name Alias
+    data = inputdata
+    
     if dtype == 'float32':
         data = mx.sym.identity(data=data, name='id')
     else:
@@ -341,7 +345,7 @@ def irnext(units, num_stages, filter_list, num_classes, num_group, bottle_neck=1
         return body
         
 
-def get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
+def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
                taskmode='CLS', seg_stride_mode='', dtype='float32', **kwargs):
     """
@@ -373,6 +377,7 @@ def get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5
         units = per_unit * num_stages
         
     else:
+        
         if num_layers >= 38:
             filter_list = [64, int(outfeature/8) , int(outfeature/4), int(outfeature/2), outfeature ]
             use_bottle_neck = bottle_neck
@@ -412,11 +417,12 @@ def get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5
         seg_stride_list = [1,2,2,1]
         
     
-    return irnext(units       = units,
-                  num_stages  = num_stages,
-                  filter_list = filter_list,
-                  num_classes = num_classes,
-                  num_group   = num_group, 
+    return irnext(data, 
+                  units,
+                  num_stages,
+                  filter_list,
+                  num_classes,
+                  num_group, 
                   bottle_neck = use_bottle_neck,
                   lastout     = lastout,
                   expansion   = expansion,
@@ -438,159 +444,136 @@ def get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5
 class irnext_deeplab_dcn(Symbol):
     
     
-    def __init__(self, numclasses , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
+    def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
                 num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-                taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs):
+                taskmode='CLS', seg_stride_mode='', deeplabversion=1, dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
         """
         self.eps = 1e-5
         self.use_global_stats = True
         self.workspace = 4096
-        self.units = (3, 4, 23, 3) # use for 101
-        self.filter_list = [256, 512, 1024, 2048]
-
-    def get_cls_conv(self, data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-               dtype='float32', **kwargs):
-        
-        return get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs)
-        
-        
-    def get_seg_conv(self, data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs):
-        
-        return get_symbol(num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-               taskmode='SEG', seg_stride_mode='', dtype='float32', **kwargs)
+        self.num_classes = num_classes
+        self.num_layers = num_layers
+        self.outfeature = outfeature
+        self.bottle_neck = bottle_neck
+        self.expansion = expansion
+        self.num_group = num_group
+        self.lastout = lastout
+        self.dilpat = dilpat
+        self.irv2 = irv2
+        self.deform = deform
+        self.taskmode = taskmode
+        self.seg_stride_mode = seg_stride_mode
+        self.deeplabversion = deeplabversion
+        self.atrouslist = [6,12,18,24]
+        # (3, 4, 23, 3) # use for 101
+        # filter_list = [256, 512, 1024, 2048]
         
 
-    def get_train_symbol(self, num_classes):
-        """
-        get symbol for training
-        :param num_classes: num of classes
-        :return: the symbol for training
-        """
+    def get_cls_symbol(self, **kwargs):
+        
         data = mx.symbol.Variable(name="data")
-        seg_cls_gt = mx.symbol.Variable(name='label')
-
-        # shared convolutional layers
-        conv_feat = self.get_resnet_conv(data)
-
-        # subsequent fc layers by haozhi
+        
+        return get_conv(  data,
+                          self.num_classes,
+                          self.num_layers,
+                          self.outfeature,
+                          bottle_neck=self.bottle_neck,
+                          expansion=self.expansion, 
+                          num_group=self.num_group, 
+                          lastout=self.lastout,
+                          dilpat=self.dilpat, 
+                          irv2=self.irv2, 
+                          deform=self.deform, 
+                          conv_workspace=256,
+                          taskmode='CLS', 
+                          seg_stride_mode='', dtype='float32', **kwargs)
+        
+        
+    def get_seg_symbol(self, **kwargs):
+        
+        data = mx.symbol.Variable(name="data")
+        seg_cls_gt = mx.symbol.Variable(name="label")
+        conv_feat = getconv(data,
+                            self.num_layers,
+                            self.outfeature,
+                            bottle_neck=self.bottle_neck,
+                            expansion=self.expansion, 
+                            num_group=self.num_group, 
+                            lastout=self.lastout,
+                            dilpat=self.dilpat, 
+                            irv2=self.irv2, 
+                            deform=self.deform, 
+                            conv_workspace=256,
+                            taskmode='SEG',
+                            seg_stride_mode=self.seg_stride_mode,
+                            dtype='float32',
+                            **kwargs)
+        
+        
         fc6_bias = mx.symbol.Variable('fc6_bias', lr_mult=2.0)
         fc6_weight = mx.symbol.Variable('fc6_weight', lr_mult=1.0)
-
-        fc6 = mx.symbol.Convolution(data=conv_feat, kernel=(1, 1), pad=(0, 0), num_filter=1024, name="fc6",
+        fc6 = mx.symbol.Convolution(data=conv_feat, kernel=(1, 1), pad=(0, 0), num_filter=self.outfeature, name="fc6",
                                     bias=fc6_bias, weight=fc6_weight, workspace=self.workspace)
         relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
+        
 
-        score_bias = mx.symbol.Variable('score_bias', lr_mult=2.0)
-        score_weight = mx.symbol.Variable('score_weight', lr_mult=1.0)
-
-        score = mx.symbol.Convolution(data=relu_fc6, kernel=(1, 1), pad=(0, 0), num_filter=num_classes, name="score",
-                                      bias=score_bias, weight=score_weight, workspace=self.workspace)
-
-        upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(32, 32), stride=(16, 16),
-                                             num_group=num_classes, no_bias=True, name='upsampling',
-                                             attr={'lr_mult': '0.0'}, workspace=self.workspace)
+        if seg_stride_mode == '4x':
+            upstride = 4
+        elif seg_stride_mode == '8x':
+            upstride = 8
+        elif seg_stride_mode == '16x':
+            upstride = 16
+        else:
+            upstride = 16
         
-        ## DeepLab v2 Fix:
-        '''
-        score_0_bias = 
-        score_0_weight = 
-        score_0 = mx.symbol.Convolution(data= , kernel=(3,3), dilate=(dilate[0],dilate[0]), pad=(dilate[0],dilate[0]) )
         
-        score = score0
-        
-        for i in range(1, len (final_dilate_list) ):
-        
-            exec'' score_i_bias = 
-            exec'' score_i_weight = 
-            exec'' score_i = mx.symbol.Convolution(data= , kernel=(3,3), \
-                                                   dilate=(dilate[i],dilate[i]), pad=(dilate[i],dilate[i]) )
-            score = score + score_i
+        if self.deeplabversion == 1:
             
-        # Todo: Fix How to Upsampling?
-        
-        
-        upsampling_v2 = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(16, 16), stride=(16, 16),
+            score_bias = mx.symbol.Variable('score_bias', lr_mult=2.0)
+            score_weight = mx.symbol.Variable('score_weight', lr_mult=1.0)
+            score = mx.symbol.Convolution(data=relu_fc6, kernel=(1, 1), pad=(0, 0), num_filter=self.numclasses, name="score",
+                                      bias=score_bias, weight=score_weight, workspace=self.workspace)
+            upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(upstride*2, upstride*2), 
+                                             stride=(upstride, upstride),
                                              num_group=num_classes, no_bias=True, name='upsampling',
                                              attr={'lr_mult': '0.0'}, workspace=self.workspace)
         
-        ### 
-        
-        '''
-        
-        
-        
-        
-        
-        
-        
-
-
-        croped_score = mx.symbol.Crop(*[upsampling, data], offset=(8, 8), name='croped_score')
-        softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
+            croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
+            softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
                                           use_ignore=True, ignore_label=255, name="softmax")
 
-        return softmax
+            return softmax
+        elif self.deeplabversion > 1:
+            atrouslistlen = len(self.atrouslist)
+            for i in range(atrouslistlen):
+                thisatrous = self.atrouslist[i]
+                exec('score_{ind}_bias = mx.symbol.Variable(\'score_{ind}_bias\', lr_mult=2.0)'.format(ind=i))
+                exec('score_{ind}_weight = mx.symbol.Variable(\'score_{ind}_weight\', lr_mult=1.0)'.format(ind=i))
+                exec('score_{ind} = mx.symbol.Convolution(data=relu_fc6, kernel=(3, 3), pad=(thisatrous, thisatrous),\
+                        dilate=(thisatrous, thisatrous) ,num_filter=self.numclasses, \
+                        name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
+                        workspace=self.workspace)'.format(ind=i))
+                if i==0:
+                    score = score_0
+                else:
+                    exec('score = score + score_{ind}'.format(ind=i))
+            
 
-    def get_test_symbol(self, num_classes):
-        """
-        get symbol for testing
-        :param num_classes: num of classes
-        :return: the symbol for testing
-        """
-        data = mx.symbol.Variable(name="data")
+            upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(upstride*2, upstride*2), 
+                                             stride=(upstride, upstride),
+                                             num_group=num_classes, no_bias=True, name='upsampling',
+                                             attr={'lr_mult': '0.0'}, workspace=self.workspace)
+        
+            croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
+            softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
+                                          use_ignore=True, ignore_label=255, name="softmax")
 
-        # shared convolutional layers
-        conv_feat = self.get_resnet_conv(data)
-
-        fc6_bias = mx.symbol.Variable('fc6_bias', lr_mult=2.0)
-        fc6_weight = mx.symbol.Variable('fc6_weight', lr_mult=1.0)
-
-        fc6 = mx.symbol.Convolution(
-            data=conv_feat, kernel=(1, 1), pad=(0, 0), num_filter=1024, name="fc6", bias=fc6_bias, weight=fc6_weight,
-            workspace=self.workspace)
-        relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
-
-        score_bias = mx.symbol.Variable('score_bias', lr_mult=2.0)
-        score_weight = mx.symbol.Variable('score_weight', lr_mult=1.0)
-
-        score = mx.symbol.Convolution(
-            data=relu_fc6, kernel=(1, 1), pad=(0, 0), num_filter=num_classes, name="score", bias=score_bias,
-            weight=score_weight, workspace=self.workspace)
-
-        upsampling = mx.symbol.Deconvolution(
-            data=score, num_filter=num_classes, kernel=(32, 32), stride=(16, 16), num_group=num_classes, no_bias=True,
-            name='upsampling', attr={'lr_mult': '0.0'}, workspace=self.workspace)
-
-        croped_score = mx.symbol.Crop(*[upsampling, data], offset=(8, 8), name='croped_score')
-
-        softmax = mx.symbol.SoftmaxOutput(data=croped_score, normalization='valid', multi_output=True, use_ignore=True,
-                                          ignore_label=255, name="softmax")
-
-        return softmax
-
-    def get_symbol(self, cfg, is_train=True):
-        """
-        return a generated symbol, it also need to be assigned to self.sym
-        """
-
-        # config alias for convenient
-        num_classes = cfg.dataset.NUM_CLASSES
-
-        if is_train:
-            self.sym = self.get_train_symbol(num_classes=num_classes)
-        else:
-            self.sym = self.get_test_symbol(num_classes=num_classes)
-
-        return self.sym
-
+            return softmax
+    
+    
+    '''
     def init_weights(self, cfg, arg_params, aux_params):
         arg_params['res5a_branch2b_offset_weight'] = mx.nd.zeros(shape=self.arg_shape_dict['res5a_branch2b_offset_weight'])
         arg_params['res5a_branch2b_offset_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['res5a_branch2b_offset_bias'])
@@ -607,3 +590,4 @@ class irnext_deeplab_dcn(Symbol):
         init = mx.init.Initializer()
         init._init_bilinear('upsample_weight', arg_params['upsampling_weight'])
 
+    '''
