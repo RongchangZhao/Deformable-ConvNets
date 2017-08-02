@@ -165,6 +165,7 @@ class BatchFileIter(DataIter):
         if self.cur >= len(self.seq):
             raise StopIteration
         idx = self.seq[self.cur]
+        self.cur += 1
         fname, fname_label = self.imglist[idx]
         return self._read_img(fname, fname_label)
 
