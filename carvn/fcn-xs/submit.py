@@ -100,7 +100,7 @@ def get_mask(img_path, cutoff):
       ystart = y
       ystop = min(ystart+cutoff,img.shape[2])
       ystart = ystop-cutoff
-      #print(xstart,ystart,xstop,ystop)
+      print(xstart,ystart,xstop,ystop)
       _img = img[:,xstart:xstop,ystart:ystop]
       _mask = get_mask_out(_img)
       mask[xstart:xstop,ystart:ystop] = _mask
@@ -133,7 +133,7 @@ def main():
       help='load epoch.')
   parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
-  parser.add_argument('--cutoff', type=int, default=1000,
+  parser.add_argument('--cutoff', type=int, default=959,
       help='cutoff size.')
   parser.add_argument('--parts', default='',
       help='test parts.')
@@ -159,7 +159,7 @@ def main():
   for img in os.listdir(test_data_dir):
     #id = img.split('.')[0]
     id = img
-    pos = int(id.split('_')[1])
+    pos = int(img.split('.')[0].split('_')[1])
     if len(parts)>0 and not pos in parts:
       #print("skip %d"%pos)
       continue
