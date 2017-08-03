@@ -2,10 +2,16 @@
 import numpy as np
 import mxnet as mx
 import argparse
+import datetime
 import cv2
 import sys
 import os
 from PIL import Image
+
+def prt(msg):
+  ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  print("%s] %s" % (ts, msg))
+  sys.stdout.flush()
 
 def ch_dev(arg_params, aux_params, ctx):
     new_args = dict()
@@ -42,7 +48,7 @@ ctx = None
 
 fcnxs, fcnxs_args, fcnxs_auxs = None, None, None
 
-def get_img(img_path, patch = None):
+def get_img(img_path):
   """get the (1, 3, h, w) np.array data for the img_path"""
   mean = np.array([123.68, 116.779, 103.939])  # (R,G,B)
   img = Image.open(img_path)
@@ -127,7 +133,7 @@ def main():
       help='load epoch.')
   parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
-  parser.add_argument('--cutoff', type=int, default=800,
+  parser.add_argument('--cutoff', type=int, default=1000,
       help='cutoff size.')
   parser.add_argument('--parts', default='',
       help='test parts.')
@@ -151,7 +157,8 @@ def main():
   #outf.write("img,rle_mask\n")
   pp = 0
   for img in os.listdir(test_data_dir):
-    id = img.split('.')[0]
+    #id = img.split('.')[0]
+    id = img
     pos = int(id.split('_')[1])
     if len(parts)>0 and not pos in parts:
       #print("skip %d"%pos)
@@ -170,8 +177,7 @@ def main():
     outf.write("%s,%s\n" % (id, rle_str))
     pp+=1
     if pp%10==0:
-      print("Processing %d"%pp)
-      sys.stdout.flush()
+      prt("Processing %d"%pp)
     #count = 0
     #for i in xrange(mask.shape[0]):
     #  for j in xrange(mask.shape[1]):
