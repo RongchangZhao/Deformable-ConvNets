@@ -1,2 +1,4 @@
-import resnet_v1_101_deeplab
-import resnet_v1_101_deeplab_dcn
+#import resnet_v1_101_deeplab
+#import resnet_v1_101_deeplab_dcn
+
+import irnext_v2_deeplab_v3_dcn_w_hypers

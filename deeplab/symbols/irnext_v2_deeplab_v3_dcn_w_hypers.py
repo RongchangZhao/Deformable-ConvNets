@@ -21,7 +21,7 @@
 
 import cPickle
 import mxnet as mx
-from utils.symbol import Symbol
+# from utils.symbol import Symbol
 
 
 ###### UNIT LIST #######
@@ -77,7 +77,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
         conv2 = mx.sym.Convolution(data=act1, num_filter=num_filter, kernel=(3,3), stride=(1,1),
-                                   pad=(dilation,dilation), dilate=(dilation,dilation)
+                                   pad=(dilation,dilation), dilate=(dilation,dilation),
                                       no_bias=True, workspace=workspace, name=name + '_conv2')
         bn2 = mx.sym.BatchNorm(data=conv2, fix_gamma=False, momentum=bn_mom, eps=2e-5, name=name + '_bn2')
 
@@ -267,9 +267,10 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
     
     data = mx.sym.BatchNorm(data=data, fix_gamma=True, eps=2e-5, momentum=bn_mom, name='bn_data')
     
-    (nchannel, height, width) = (3, lastout*32, lastout*32)
-    
-    
+    if num_classes in [10,100]:
+        (nchannel, height, width) = (3, 4* lastout, 4*lastout)
+    else:
+        (nchannel, height, width) = (3, 32* lastout, 32*lastout)
     
     if height <= 32:            # such as cifar10/cifar100
         body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(1,1), pad=(1, 1),
@@ -290,7 +291,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
                     'DEEPLAB.HOURGLASS':[1,2,1,2],
                     'DEEPLAB.EXP':[1,1,2,4],
                     'DEEPLAB.REVEXP':[1,4,2,1],
-                    'DEEPLAB.LIN':[1,1,2,3]
+                    'DEEPLAB.LIN':[1,1,2,3],
                     'DEEPLAB.REVLIN':[1,3,2,1],
                     'DEEPLAB.DOUBLE':[1,2,2,2]}
     
@@ -303,13 +304,13 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         for i in range(num_stages):
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
-                             expansion = expansion, num_group=num_group, dilate = (dilation_plan[i],dilation_plan[i]),
-                             irv2 = irv2, deform = deform
+                             expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
+                             irv2 = irv2, deform = deform,
                              bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             for j in range(units[i]-1):
                 body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
-                                 dilate = (dilation_plan[i],dilation_plan[i]), irv2 = irv2, deform = deform ,
+                                 dilation = dilation_plan[i], irv2 = irv2, deform = deform ,
                                  bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             
         pool1 = mx.sym.Pooling(data=body, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
@@ -333,13 +334,13 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         for i in range(num_stages):
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
-                             expansion = expansion, num_group=num_group, dilate = (dilation_plan[i],dilation_plan[i]),
-                             irv2 = irv2, deform = deform
+                             expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
+                             irv2 = irv2, deform = deform,
                              bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             for j in range(units[i]-1):
                 body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
-                                 dilate = (dilation_plan[i],dilation_plan[i]), irv2 = irv2, deform = deform ,
+                                 dilation = dilation_plan[i], irv2 = irv2, deform = deform ,
                                  bn_mom=bn_mom, workspace=workspace, memonger=memonger)
                 
         return body
@@ -357,12 +358,19 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
     # num_classes, num_layers, bottle_neck=1, expansion=0.5, \
     # num_group=32, dilation=1, irv2 = False, deform=0, taskmode, seg_stride_mode
     
-    (nchannel, height, width) = (3, 32* lastout, 32*lastout)
+    if num_classes in [10,100]:
+        (nchannel, height, width) = (3, 4* lastout, 4*lastout)
+    else:
+        (nchannel, height, width) = (3, 32* lastout, 32*lastout)
     
     
     if height <= 32: # CIFAR10/CIFAR100
         num_stages = 3
-        if (num_layers-2) % 9 == 0 and num_layers >= 164:
+        if num_layers == 29:
+            per_unit = [3]
+            filter_list = [16, int(outfeature/4), int(outfeature/2), outfeature]
+            use_bottle_neck = bottle_neck
+        elif (num_layers-2) % 9 == 0 and num_layers >= 164:
             per_unit = [(num_layers-2)//9]
             filter_list = [16, int(outfeature/4), int(outfeature/2), outfeature]
             use_bottle_neck = bottle_neck
@@ -440,8 +448,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         
 # Todo 0 & 3 .
 
-
-class irnext_deeplab_dcn(Symbol):
+# Symbol
+class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\

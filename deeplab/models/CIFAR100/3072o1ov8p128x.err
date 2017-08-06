@@ -1,0 +1,420 @@
+nohup: 忽略输入
+INFO:root:start with arguments Namespace(batch_size=128, benchmark=0, bottle_neck=1, data_nthreads=4, data_train='/data3/dataset/CIFAR100_MXNet/train.rec', data_val='/data3/dataset/CIFAR100_MXNet/test.rec', deform=0, dilpat='', disp_batches=20, dtype='float32', expansion=0.125, gpus='0,1,2,3,4,5,6,7', image_shape='3,28,28', irv2=False, kv_store='device', lastout=8, load_epoch=None, lr=0.05, lr_factor=0.1, lr_step_epochs='150,240', max_random_aspect_ratio=0, max_random_h=36, max_random_l=50, max_random_rotate_angle=0, max_random_s=50, max_random_scale=1, max_random_shear_ratio=0, min_random_scale=1, model_prefix=None, mom=0.9, monitor=0, network='irnext', num_classes=100, num_epochs=400, num_examples=50000, num_group=128, num_layers=29, optimizer='sgd', outfeature=3072, pad_size=4, random_crop=1, random_mirror=1, rgb_mean='123.68,116.779,103.939', test_io=0, top_k=5, wd=0.001)
+[16:52:07] src/io/iter_image_recordio_2.cc:135: ImageRecordIOParser2: /data3/dataset/CIFAR100_MXNet/train.rec, use 4 threads for decoding..
+[16:52:08] src/io/iter_image_recordio_2.cc:135: ImageRecordIOParser2: /data3/dataset/CIFAR100_MXNet/test.rec, use 4 threads for decoding..
+[16:52:10] src/operator/././cudnn_algoreg-inl.h:65: Running performance tests to find the best convolution algorithm, this can take a while... (setting env variable MXNET_CUDNN_AUTOTUNE_DEFAULT to 0 to disable)
+[16:52:29] src/kvstore/././comm.h:316: only 24 out of 56 GPU pairs are enabled direct access. It may affect the performance. You can set MXNET_ENABLE_GPU_P2P=0 to turn it off
+[16:52:29] src/kvstore/././comm.h:325: .vvv....
+[16:52:29] src/kvstore/././comm.h:325: v.vv....
+[16:52:29] src/kvstore/././comm.h:325: vv.v....
+[16:52:29] src/kvstore/././comm.h:325: vvv.....
+[16:52:29] src/kvstore/././comm.h:325: .....vvv
+[16:52:29] src/kvstore/././comm.h:325: ....v.vv
+[16:52:29] src/kvstore/././comm.h:325: ....vv.v
+[16:52:29] src/kvstore/././comm.h:325: ....vvv.
+INFO:root:Epoch[0] Batch [20]	Speed: 69.95 samples/sec	accuracy=0.010417	top_k_accuracy_5=0.054688
+INFO:root:Epoch[0] Batch [40]	Speed: 69.51 samples/sec	accuracy=0.009766	top_k_accuracy_5=0.042969
+INFO:root:Epoch[0] Batch [60]	Speed: 69.11 samples/sec	accuracy=0.013281	top_k_accuracy_5=0.056641
+INFO:root:Epoch[0] Batch [80]	Speed: 69.71 samples/sec	accuracy=0.012109	top_k_accuracy_5=0.057422
+INFO:root:Epoch[0] Batch [100]	Speed: 69.82 samples/sec	accuracy=0.018750	top_k_accuracy_5=0.074609
+INFO:root:Epoch[0] Batch [120]	Speed: 68.19 samples/sec	accuracy=0.017578	top_k_accuracy_5=0.086719
+INFO:root:Epoch[0] Batch [140]	Speed: 69.19 samples/sec	accuracy=0.021875	top_k_accuracy_5=0.109766
+INFO:root:Epoch[0] Batch [160]	Speed: 69.76 samples/sec	accuracy=0.023438	top_k_accuracy_5=0.102734
+INFO:root:Epoch[0] Batch [180]	Speed: 68.98 samples/sec	accuracy=0.031641	top_k_accuracy_5=0.123047
+INFO:root:Epoch[0] Batch [200]	Speed: 69.50 samples/sec	accuracy=0.028125	top_k_accuracy_5=0.131250
+INFO:root:Epoch[0] Batch [220]	Speed: 67.80 samples/sec	accuracy=0.029687	top_k_accuracy_5=0.135547
+INFO:root:Epoch[0] Batch [240]	Speed: 69.74 samples/sec	accuracy=0.030078	top_k_accuracy_5=0.128516
+INFO:root:Epoch[0] Batch [260]	Speed: 69.91 samples/sec	accuracy=0.037500	top_k_accuracy_5=0.146875
+INFO:root:Epoch[0] Batch [280]	Speed: 68.66 samples/sec	accuracy=0.030078	top_k_accuracy_5=0.139453
+INFO:root:Epoch[0] Batch [300]	Speed: 69.73 samples/sec	accuracy=0.034766	top_k_accuracy_5=0.140234
+INFO:root:Epoch[0] Batch [320]	Speed: 69.00 samples/sec	accuracy=0.039844	top_k_accuracy_5=0.159375
+INFO:root:Epoch[0] Batch [340]	Speed: 68.34 samples/sec	accuracy=0.034375	top_k_accuracy_5=0.148438
+INFO:root:Epoch[0] Batch [360]	Speed: 70.29 samples/sec	accuracy=0.039844	top_k_accuracy_5=0.149609
+INFO:root:Epoch[0] Batch [380]	Speed: 67.49 samples/sec	accuracy=0.030469	top_k_accuracy_5=0.159766
+INFO:root:Epoch[0] Train-accuracy=0.037500
+INFO:root:Epoch[0] Train-top_k_accuracy_5=0.160938
+INFO:root:Epoch[0] Time cost=923.145
+INFO:root:Epoch[0] Validation-accuracy=0.062302
+INFO:root:Epoch[0] Validation-top_k_accuracy_5=0.214992
+INFO:root:Epoch[1] Batch [20]	Speed: 69.53 samples/sec	accuracy=0.044643	top_k_accuracy_5=0.163690
+INFO:root:Epoch[1] Batch [40]	Speed: 67.47 samples/sec	accuracy=0.047656	top_k_accuracy_5=0.174609
+INFO:root:Epoch[1] Batch [60]	Speed: 68.91 samples/sec	accuracy=0.044141	top_k_accuracy_5=0.150000
+INFO:root:Epoch[1] Batch [80]	Speed: 69.67 samples/sec	accuracy=0.045703	top_k_accuracy_5=0.175781
+INFO:root:Epoch[1] Batch [100]	Speed: 68.60 samples/sec	accuracy=0.038281	top_k_accuracy_5=0.167578
+INFO:root:Epoch[1] Batch [120]	Speed: 70.17 samples/sec	accuracy=0.048438	top_k_accuracy_5=0.174219
+INFO:root:Epoch[1] Batch [140]	Speed: 68.69 samples/sec	accuracy=0.051172	top_k_accuracy_5=0.184766
+INFO:root:Epoch[1] Batch [160]	Speed: 68.75 samples/sec	accuracy=0.051172	top_k_accuracy_5=0.180469
+INFO:root:Epoch[1] Batch [180]	Speed: 68.01 samples/sec	accuracy=0.053125	top_k_accuracy_5=0.187891
+INFO:root:Epoch[1] Batch [200]	Speed: 67.74 samples/sec	accuracy=0.052734	top_k_accuracy_5=0.192188
+INFO:root:Epoch[1] Batch [220]	Speed: 68.62 samples/sec	accuracy=0.050391	top_k_accuracy_5=0.195312
+INFO:root:Epoch[1] Batch [240]	Speed: 69.02 samples/sec	accuracy=0.054688	top_k_accuracy_5=0.201172
+INFO:root:Epoch[1] Batch [260]	Speed: 69.75 samples/sec	accuracy=0.051562	top_k_accuracy_5=0.199609
+INFO:root:Epoch[1] Batch [280]	Speed: 69.62 samples/sec	accuracy=0.051953	top_k_accuracy_5=0.199609
+INFO:root:Epoch[1] Batch [300]	Speed: 70.46 samples/sec	accuracy=0.053516	top_k_accuracy_5=0.189844
+INFO:root:Epoch[1] Batch [320]	Speed: 68.15 samples/sec	accuracy=0.061328	top_k_accuracy_5=0.203906
+INFO:root:Epoch[1] Batch [340]	Speed: 69.22 samples/sec	accuracy=0.059766	top_k_accuracy_5=0.221094
+INFO:root:Epoch[1] Batch [360]	Speed: 69.56 samples/sec	accuracy=0.057031	top_k_accuracy_5=0.215234
+INFO:root:Epoch[1] Batch [380]	Speed: 68.98 samples/sec	accuracy=0.065234	top_k_accuracy_5=0.213281
+INFO:root:Epoch[1] Train-accuracy=0.065625
+INFO:root:Epoch[1] Train-top_k_accuracy_5=0.219531
+INFO:root:Epoch[1] Time cost=724.624
+INFO:root:Epoch[1] Validation-accuracy=0.094852
+INFO:root:Epoch[1] Validation-top_k_accuracy_5=0.286759
+INFO:root:Epoch[2] Batch [20]	Speed: 68.31 samples/sec	accuracy=0.059152	top_k_accuracy_5=0.209449
+INFO:root:Epoch[2] Batch [40]	Speed: 68.58 samples/sec	accuracy=0.060547	top_k_accuracy_5=0.215625
+INFO:root:Epoch[2] Batch [60]	Speed: 69.68 samples/sec	accuracy=0.069922	top_k_accuracy_5=0.241016
+INFO:root:Epoch[2] Batch [80]	Speed: 69.10 samples/sec	accuracy=0.068359	top_k_accuracy_5=0.223438
+INFO:root:Epoch[2] Batch [100]	Speed: 69.17 samples/sec	accuracy=0.067969	top_k_accuracy_5=0.231250
+INFO:root:Epoch[2] Batch [120]	Speed: 68.19 samples/sec	accuracy=0.083203	top_k_accuracy_5=0.245312
+INFO:root:Epoch[2] Batch [140]	Speed: 69.91 samples/sec	accuracy=0.072656	top_k_accuracy_5=0.245312
+INFO:root:Epoch[2] Batch [160]	Speed: 68.69 samples/sec	accuracy=0.073828	top_k_accuracy_5=0.255469
+INFO:root:Epoch[2] Batch [180]	Speed: 69.14 samples/sec	accuracy=0.071484	top_k_accuracy_5=0.244531
+INFO:root:Epoch[2] Batch [200]	Speed: 69.97 samples/sec	accuracy=0.071875	top_k_accuracy_5=0.250781
+INFO:root:Epoch[2] Batch [220]	Speed: 68.78 samples/sec	accuracy=0.071875	top_k_accuracy_5=0.235937
+INFO:root:Epoch[2] Batch [240]	Speed: 68.70 samples/sec	accuracy=0.071484	top_k_accuracy_5=0.247656
+INFO:root:Epoch[2] Batch [260]	Speed: 68.47 samples/sec	accuracy=0.073047	top_k_accuracy_5=0.241797
+INFO:root:Epoch[2] Batch [280]	Speed: 69.73 samples/sec	accuracy=0.077734	top_k_accuracy_5=0.249609
+INFO:root:Epoch[2] Batch [300]	Speed: 67.99 samples/sec	accuracy=0.084375	top_k_accuracy_5=0.255859
+INFO:root:Epoch[2] Batch [320]	Speed: 69.47 samples/sec	accuracy=0.083594	top_k_accuracy_5=0.262109
+INFO:root:Epoch[2] Batch [340]	Speed: 68.72 samples/sec	accuracy=0.076563	top_k_accuracy_5=0.255469
+INFO:root:Epoch[2] Batch [360]	Speed: 69.33 samples/sec	accuracy=0.086328	top_k_accuracy_5=0.258203
+INFO:root:Epoch[2] Batch [380]	Speed: 67.37 samples/sec	accuracy=0.079297	top_k_accuracy_5=0.268359
+INFO:root:Epoch[2] Train-accuracy=0.090278
+INFO:root:Epoch[2] Train-top_k_accuracy_5=0.263021
+INFO:root:Epoch[2] Time cost=722.756
+INFO:root:Epoch[2] Validation-accuracy=0.120192
+INFO:root:Epoch[2] Validation-top_k_accuracy_5=0.357472
+INFO:root:Epoch[3] Batch [20]	Speed: 69.81 samples/sec	accuracy=0.089658	top_k_accuracy_5=0.266741
+INFO:root:Epoch[3] Batch [40]	Speed: 69.06 samples/sec	accuracy=0.091016	top_k_accuracy_5=0.281250
+INFO:root:Epoch[3] Batch [60]	Speed: 67.69 samples/sec	accuracy=0.097656	top_k_accuracy_5=0.277344
+INFO:root:Epoch[3] Batch [80]	Speed: 70.34 samples/sec	accuracy=0.092188	top_k_accuracy_5=0.275000
+INFO:root:Epoch[3] Batch [100]	Speed: 68.72 samples/sec	accuracy=0.094141	top_k_accuracy_5=0.290625
+INFO:root:Epoch[3] Batch [120]	Speed: 68.61 samples/sec	accuracy=0.096875	top_k_accuracy_5=0.289062
+INFO:root:Epoch[3] Batch [140]	Speed: 68.40 samples/sec	accuracy=0.101953	top_k_accuracy_5=0.286328
+INFO:root:Epoch[3] Batch [160]	Speed: 68.26 samples/sec	accuracy=0.100781	top_k_accuracy_5=0.301563
+INFO:root:Epoch[3] Batch [180]	Speed: 69.21 samples/sec	accuracy=0.096094	top_k_accuracy_5=0.296875
+INFO:root:Epoch[3] Batch [200]	Speed: 68.82 samples/sec	accuracy=0.093750	top_k_accuracy_5=0.287891
+INFO:root:Epoch[3] Batch [220]	Speed: 68.84 samples/sec	accuracy=0.094922	top_k_accuracy_5=0.290625
+INFO:root:Epoch[3] Batch [240]	Speed: 68.28 samples/sec	accuracy=0.101172	top_k_accuracy_5=0.302734
+INFO:root:Epoch[3] Batch [260]	Speed: 68.65 samples/sec	accuracy=0.098047	top_k_accuracy_5=0.308594
+INFO:root:Epoch[3] Batch [280]	Speed: 69.58 samples/sec	accuracy=0.101562	top_k_accuracy_5=0.308203
+INFO:root:Epoch[3] Batch [300]	Speed: 68.19 samples/sec	accuracy=0.102734	top_k_accuracy_5=0.310547
+INFO:root:Epoch[3] Batch [320]	Speed: 67.10 samples/sec	accuracy=0.104297	top_k_accuracy_5=0.305859
+INFO:root:Epoch[3] Batch [340]	Speed: 68.69 samples/sec	accuracy=0.112109	top_k_accuracy_5=0.323828
+INFO:root:Epoch[3] Batch [360]	Speed: 70.17 samples/sec	accuracy=0.108594	top_k_accuracy_5=0.308203
+INFO:root:Epoch[3] Batch [380]	Speed: 68.25 samples/sec	accuracy=0.111328	top_k_accuracy_5=0.316797
+INFO:root:Epoch[3] Train-accuracy=0.118750
+INFO:root:Epoch[3] Train-top_k_accuracy_5=0.317969
+INFO:root:Epoch[3] Time cost=725.515
+INFO:root:Epoch[3] Validation-accuracy=0.151042
+INFO:root:Epoch[3] Validation-top_k_accuracy_5=0.395833
+INFO:root:Epoch[4] Batch [20]	Speed: 68.88 samples/sec	accuracy=0.120164	top_k_accuracy_5=0.324777
+INFO:root:Epoch[4] Batch [40]	Speed: 70.96 samples/sec	accuracy=0.114453	top_k_accuracy_5=0.327734
+INFO:root:Epoch[4] Batch [60]	Speed: 69.23 samples/sec	accuracy=0.127734	top_k_accuracy_5=0.338672
+INFO:root:Epoch[4] Batch [80]	Speed: 69.78 samples/sec	accuracy=0.112109	top_k_accuracy_5=0.335547
+INFO:root:Epoch[4] Batch [100]	Speed: 69.83 samples/sec	accuracy=0.109766	top_k_accuracy_5=0.332031
+INFO:root:Epoch[4] Batch [120]	Speed: 69.84 samples/sec	accuracy=0.125000	top_k_accuracy_5=0.344141
+INFO:root:Epoch[4] Batch [140]	Speed: 69.41 samples/sec	accuracy=0.121484	top_k_accuracy_5=0.347656
+INFO:root:Epoch[4] Batch [160]	Speed: 71.26 samples/sec	accuracy=0.125391	top_k_accuracy_5=0.337891
+INFO:root:Epoch[4] Batch [180]	Speed: 70.20 samples/sec	accuracy=0.126562	top_k_accuracy_5=0.336719
+INFO:root:Epoch[4] Batch [200]	Speed: 69.62 samples/sec	accuracy=0.117578	top_k_accuracy_5=0.350000
+INFO:root:Epoch[4] Batch [220]	Speed: 69.27 samples/sec	accuracy=0.120703	top_k_accuracy_5=0.347656
+INFO:root:Epoch[4] Batch [240]	Speed: 69.05 samples/sec	accuracy=0.127734	top_k_accuracy_5=0.353906
+INFO:root:Epoch[4] Batch [260]	Speed: 69.85 samples/sec	accuracy=0.126953	top_k_accuracy_5=0.357422
+INFO:root:Epoch[4] Batch [280]	Speed: 70.73 samples/sec	accuracy=0.122656	top_k_accuracy_5=0.353906
+INFO:root:Epoch[4] Batch [300]	Speed: 69.82 samples/sec	accuracy=0.127344	top_k_accuracy_5=0.340625
+INFO:root:Epoch[4] Batch [320]	Speed: 69.40 samples/sec	accuracy=0.134375	top_k_accuracy_5=0.357812
+INFO:root:Epoch[4] Batch [340]	Speed: 68.97 samples/sec	accuracy=0.138281	top_k_accuracy_5=0.382422
+INFO:root:Epoch[4] Batch [360]	Speed: 70.27 samples/sec	accuracy=0.135937	top_k_accuracy_5=0.361719
+INFO:root:Epoch[4] Batch [380]	Speed: 70.24 samples/sec	accuracy=0.141797	top_k_accuracy_5=0.376953
+INFO:root:Epoch[4] Train-accuracy=0.134375
+INFO:root:Epoch[4] Train-top_k_accuracy_5=0.331250
+INFO:root:Epoch[4] Time cost=715.369
+INFO:root:Epoch[4] Validation-accuracy=0.185397
+INFO:root:Epoch[4] Validation-top_k_accuracy_5=0.433994
+INFO:root:Epoch[5] Batch [20]	Speed: 69.13 samples/sec	accuracy=0.130208	top_k_accuracy_5=0.354539
+INFO:root:Epoch[5] Batch [40]	Speed: 68.40 samples/sec	accuracy=0.134375	top_k_accuracy_5=0.361328
+INFO:root:Epoch[5] Batch [60]	Speed: 71.62 samples/sec	accuracy=0.143750	top_k_accuracy_5=0.382031
+INFO:root:Epoch[5] Batch [80]	Speed: 69.06 samples/sec	accuracy=0.142187	top_k_accuracy_5=0.383984
+INFO:root:Epoch[5] Batch [100]	Speed: 69.18 samples/sec	accuracy=0.146484	top_k_accuracy_5=0.405078
+INFO:root:Epoch[5] Batch [120]	Speed: 69.91 samples/sec	accuracy=0.132812	top_k_accuracy_5=0.383203
+INFO:root:Epoch[5] Batch [140]	Speed: 68.00 samples/sec	accuracy=0.161719	top_k_accuracy_5=0.382422
+INFO:root:Epoch[5] Batch [160]	Speed: 68.79 samples/sec	accuracy=0.151172	top_k_accuracy_5=0.386328
+INFO:root:Epoch[5] Batch [180]	Speed: 71.07 samples/sec	accuracy=0.164062	top_k_accuracy_5=0.396094
+INFO:root:Epoch[5] Batch [200]	Speed: 70.19 samples/sec	accuracy=0.151953	top_k_accuracy_5=0.394141
+INFO:root:Epoch[5] Batch [220]	Speed: 69.02 samples/sec	accuracy=0.144531	top_k_accuracy_5=0.391406
+INFO:root:Epoch[5] Batch [240]	Speed: 70.75 samples/sec	accuracy=0.144531	top_k_accuracy_5=0.398047
+INFO:root:Epoch[5] Batch [260]	Speed: 69.50 samples/sec	accuracy=0.156641	top_k_accuracy_5=0.388281
+INFO:root:Epoch[5] Batch [280]	Speed: 69.48 samples/sec	accuracy=0.163281	top_k_accuracy_5=0.409375
+INFO:root:Epoch[5] Batch [300]	Speed: 70.35 samples/sec	accuracy=0.158984	top_k_accuracy_5=0.403125
+INFO:root:Epoch[5] Batch [320]	Speed: 70.07 samples/sec	accuracy=0.158984	top_k_accuracy_5=0.412109
+INFO:root:Epoch[5] Batch [340]	Speed: 69.02 samples/sec	accuracy=0.164453	top_k_accuracy_5=0.408594
+INFO:root:Epoch[5] Batch [360]	Speed: 69.80 samples/sec	accuracy=0.152734	top_k_accuracy_5=0.419531
+INFO:root:Epoch[5] Batch [380]	Speed: 69.53 samples/sec	accuracy=0.166406	top_k_accuracy_5=0.429297
+INFO:root:Epoch[5] Train-accuracy=0.163194
+INFO:root:Epoch[5] Train-top_k_accuracy_5=0.412326
+INFO:root:Epoch[5] Time cost=716.587
+INFO:root:Epoch[5] Validation-accuracy=0.202424
+INFO:root:Epoch[5] Validation-top_k_accuracy_5=0.476362
+INFO:root:Epoch[6] Batch [20]	Speed: 69.37 samples/sec	accuracy=0.155506	top_k_accuracy_5=0.399926
+INFO:root:Epoch[6] Batch [40]	Speed: 71.41 samples/sec	accuracy=0.160156	top_k_accuracy_5=0.400000
+INFO:root:Epoch[6] Batch [60]	Speed: 69.47 samples/sec	accuracy=0.178125	top_k_accuracy_5=0.426953
+INFO:root:Epoch[6] Batch [80]	Speed: 68.85 samples/sec	accuracy=0.164453	top_k_accuracy_5=0.416016
+INFO:root:Epoch[6] Batch [100]	Speed: 71.18 samples/sec	accuracy=0.183984	top_k_accuracy_5=0.425781
+INFO:root:Epoch[6] Batch [120]	Speed: 69.80 samples/sec	accuracy=0.171094	top_k_accuracy_5=0.423047
+INFO:root:Epoch[6] Batch [140]	Speed: 70.11 samples/sec	accuracy=0.169141	top_k_accuracy_5=0.417969
+INFO:root:Epoch[6] Batch [160]	Speed: 69.34 samples/sec	accuracy=0.173828	top_k_accuracy_5=0.420703
+INFO:root:Epoch[6] Batch [180]	Speed: 69.39 samples/sec	accuracy=0.172266	top_k_accuracy_5=0.427734
+INFO:root:Epoch[6] Batch [200]	Speed: 69.61 samples/sec	accuracy=0.172656	top_k_accuracy_5=0.425781
+INFO:root:Epoch[6] Batch [220]	Speed: 70.17 samples/sec	accuracy=0.173437	top_k_accuracy_5=0.435547
+INFO:root:Epoch[6] Batch [240]	Speed: 68.05 samples/sec	accuracy=0.182422	top_k_accuracy_5=0.440625
+INFO:root:Epoch[6] Batch [260]	Speed: 70.21 samples/sec	accuracy=0.184766	top_k_accuracy_5=0.431250
+INFO:root:Epoch[6] Batch [280]	Speed: 69.99 samples/sec	accuracy=0.189062	top_k_accuracy_5=0.439844
+INFO:root:Epoch[6] Batch [300]	Speed: 69.60 samples/sec	accuracy=0.176563	top_k_accuracy_5=0.431250
+INFO:root:Epoch[6] Batch [320]	Speed: 69.93 samples/sec	accuracy=0.187109	top_k_accuracy_5=0.440625
+INFO:root:Epoch[6] Batch [340]	Speed: 69.31 samples/sec	accuracy=0.192969	top_k_accuracy_5=0.446484
+INFO:root:Epoch[6] Batch [360]	Speed: 70.39 samples/sec	accuracy=0.187500	top_k_accuracy_5=0.455078
+INFO:root:Epoch[6] Batch [380]	Speed: 69.18 samples/sec	accuracy=0.180469	top_k_accuracy_5=0.454297
+INFO:root:Epoch[6] Train-accuracy=0.166406
+INFO:root:Epoch[6] Train-top_k_accuracy_5=0.435937
+INFO:root:Epoch[6] Time cost=716.646
+INFO:root:Epoch[6] Validation-accuracy=0.248798
+INFO:root:Epoch[6] Validation-top_k_accuracy_5=0.536358
+INFO:root:Epoch[7] Batch [20]	Speed: 69.40 samples/sec	accuracy=0.192336	top_k_accuracy_5=0.456845
+INFO:root:Epoch[7] Batch [40]	Speed: 69.91 samples/sec	accuracy=0.185547	top_k_accuracy_5=0.444922
+INFO:root:Epoch[7] Batch [60]	Speed: 68.97 samples/sec	accuracy=0.186328	top_k_accuracy_5=0.453125
+INFO:root:Epoch[7] Batch [80]	Speed: 70.62 samples/sec	accuracy=0.203906	top_k_accuracy_5=0.467969
+INFO:root:Epoch[7] Batch [100]	Speed: 70.05 samples/sec	accuracy=0.206641	top_k_accuracy_5=0.461328
+INFO:root:Epoch[7] Batch [120]	Speed: 70.10 samples/sec	accuracy=0.208984	top_k_accuracy_5=0.476172
+INFO:root:Epoch[7] Batch [140]	Speed: 70.54 samples/sec	accuracy=0.194531	top_k_accuracy_5=0.460156
+INFO:root:Epoch[7] Batch [160]	Speed: 68.68 samples/sec	accuracy=0.205469	top_k_accuracy_5=0.467969
+INFO:root:Epoch[7] Batch [180]	Speed: 69.54 samples/sec	accuracy=0.204687	top_k_accuracy_5=0.476953
+INFO:root:Epoch[7] Batch [200]	Speed: 70.24 samples/sec	accuracy=0.196484	top_k_accuracy_5=0.469141
+INFO:root:Epoch[7] Batch [220]	Speed: 69.49 samples/sec	accuracy=0.208984	top_k_accuracy_5=0.473438
+INFO:root:Epoch[7] Batch [240]	Speed: 70.69 samples/sec	accuracy=0.201563	top_k_accuracy_5=0.460156
+INFO:root:Epoch[7] Batch [260]	Speed: 68.19 samples/sec	accuracy=0.200391	top_k_accuracy_5=0.464844
+INFO:root:Epoch[7] Batch [280]	Speed: 70.76 samples/sec	accuracy=0.202344	top_k_accuracy_5=0.477734
+INFO:root:Epoch[7] Batch [300]	Speed: 68.89 samples/sec	accuracy=0.216406	top_k_accuracy_5=0.479687
+INFO:root:Epoch[7] Batch [320]	Speed: 72.07 samples/sec	accuracy=0.192969	top_k_accuracy_5=0.453516
+INFO:root:Epoch[7] Batch [340]	Speed: 68.71 samples/sec	accuracy=0.224609	top_k_accuracy_5=0.493359
+INFO:root:Epoch[7] Batch [360]	Speed: 70.82 samples/sec	accuracy=0.212109	top_k_accuracy_5=0.491797
+INFO:root:Epoch[7] Batch [380]	Speed: 68.08 samples/sec	accuracy=0.208594	top_k_accuracy_5=0.494531
+INFO:root:Epoch[7] Train-accuracy=0.201389
+INFO:root:Epoch[7] Train-top_k_accuracy_5=0.467014
+INFO:root:Epoch[7] Time cost=714.435
+INFO:root:Epoch[7] Validation-accuracy=0.234976
+INFO:root:Epoch[7] Validation-top_k_accuracy_5=0.517328
+INFO:root:Epoch[8] Batch [20]	Speed: 69.48 samples/sec	accuracy=0.219122	top_k_accuracy_5=0.500000
+INFO:root:Epoch[8] Batch [40]	Speed: 69.91 samples/sec	accuracy=0.210547	top_k_accuracy_5=0.478516
+INFO:root:Epoch[8] Batch [60]	Speed: 69.59 samples/sec	accuracy=0.221484	top_k_accuracy_5=0.487500
+INFO:root:Epoch[8] Batch [80]	Speed: 69.32 samples/sec	accuracy=0.210156	top_k_accuracy_5=0.485547
+INFO:root:Epoch[8] Batch [100]	Speed: 69.78 samples/sec	accuracy=0.227344	top_k_accuracy_5=0.499609
+INFO:root:Epoch[8] Batch [120]	Speed: 69.10 samples/sec	accuracy=0.222656	top_k_accuracy_5=0.513672
+INFO:root:Epoch[8] Batch [140]	Speed: 70.25 samples/sec	accuracy=0.218750	top_k_accuracy_5=0.473438
+INFO:root:Epoch[8] Batch [160]	Speed: 70.32 samples/sec	accuracy=0.225000	top_k_accuracy_5=0.492578
+INFO:root:Epoch[8] Batch [180]	Speed: 70.38 samples/sec	accuracy=0.228516	top_k_accuracy_5=0.521484
+INFO:root:Epoch[8] Batch [200]	Speed: 69.92 samples/sec	accuracy=0.219141	top_k_accuracy_5=0.501563
+INFO:root:Epoch[8] Batch [220]	Speed: 68.68 samples/sec	accuracy=0.224609	top_k_accuracy_5=0.509766
+INFO:root:Epoch[8] Batch [240]	Speed: 69.62 samples/sec	accuracy=0.222656	top_k_accuracy_5=0.505859
+INFO:root:Epoch[8] Batch [260]	Speed: 69.59 samples/sec	accuracy=0.223438	top_k_accuracy_5=0.508203
+INFO:root:Epoch[8] Batch [280]	Speed: 70.86 samples/sec	accuracy=0.223047	top_k_accuracy_5=0.498828
+INFO:root:Epoch[8] Batch [300]	Speed: 69.03 samples/sec	accuracy=0.245312	top_k_accuracy_5=0.530078
+INFO:root:Epoch[8] Batch [320]	Speed: 71.05 samples/sec	accuracy=0.221875	top_k_accuracy_5=0.510156
+INFO:root:Epoch[8] Batch [340]	Speed: 67.70 samples/sec	accuracy=0.237891	top_k_accuracy_5=0.535547
+INFO:root:Epoch[8] Batch [360]	Speed: 68.68 samples/sec	accuracy=0.236719	top_k_accuracy_5=0.537500
+INFO:root:Epoch[8] Batch [380]	Speed: 69.34 samples/sec	accuracy=0.238672	top_k_accuracy_5=0.507422
+INFO:root:Epoch[8] Train-accuracy=0.262500
+INFO:root:Epoch[8] Train-top_k_accuracy_5=0.514844
+INFO:root:Epoch[8] Time cost=718.203
+INFO:root:Epoch[8] Validation-accuracy=0.299743
+INFO:root:Epoch[8] Validation-top_k_accuracy_5=0.594937
+INFO:root:Epoch[9] Batch [20]	Speed: 68.49 samples/sec	accuracy=0.226562	top_k_accuracy_5=0.494420
+INFO:root:Epoch[9] Batch [40]	Speed: 68.96 samples/sec	accuracy=0.230859	top_k_accuracy_5=0.505469
+INFO:root:Epoch[9] Batch [60]	Speed: 69.08 samples/sec	accuracy=0.238672	top_k_accuracy_5=0.526563
+INFO:root:Epoch[9] Batch [80]	Speed: 70.86 samples/sec	accuracy=0.257422	top_k_accuracy_5=0.541797
+INFO:root:Epoch[9] Batch [100]	Speed: 68.84 samples/sec	accuracy=0.242969	top_k_accuracy_5=0.519531
+INFO:root:Epoch[9] Batch [120]	Speed: 69.76 samples/sec	accuracy=0.233984	top_k_accuracy_5=0.519141
+INFO:root:Epoch[9] Batch [140]	Speed: 68.71 samples/sec	accuracy=0.250391	top_k_accuracy_5=0.505078
+INFO:root:Epoch[9] Batch [160]	Speed: 69.15 samples/sec	accuracy=0.259766	top_k_accuracy_5=0.531641
+INFO:root:Epoch[9] Batch [180]	Speed: 70.33 samples/sec	accuracy=0.246875	top_k_accuracy_5=0.532813
+INFO:root:Epoch[9] Batch [200]	Speed: 68.55 samples/sec	accuracy=0.229687	top_k_accuracy_5=0.523047
+INFO:root:Epoch[9] Batch [220]	Speed: 68.96 samples/sec	accuracy=0.239844	top_k_accuracy_5=0.526563
+INFO:root:Epoch[9] Batch [240]	Speed: 69.99 samples/sec	accuracy=0.252734	top_k_accuracy_5=0.538281
+INFO:root:Epoch[9] Batch [260]	Speed: 68.93 samples/sec	accuracy=0.245312	top_k_accuracy_5=0.528125
+INFO:root:Epoch[9] Batch [280]	Speed: 68.97 samples/sec	accuracy=0.254688	top_k_accuracy_5=0.530859
+INFO:root:Epoch[9] Batch [300]	Speed: 69.30 samples/sec	accuracy=0.244141	top_k_accuracy_5=0.527734
+INFO:root:Epoch[9] Batch [320]	Speed: 68.89 samples/sec	accuracy=0.248047	top_k_accuracy_5=0.541797
+INFO:root:Epoch[9] Batch [340]	Speed: 69.47 samples/sec	accuracy=0.269922	top_k_accuracy_5=0.553125
+INFO:root:Epoch[9] Batch [360]	Speed: 69.63 samples/sec	accuracy=0.253125	top_k_accuracy_5=0.528125
+INFO:root:Epoch[9] Batch [380]	Speed: 70.80 samples/sec	accuracy=0.256641	top_k_accuracy_5=0.542188
+INFO:root:Epoch[9] Train-accuracy=0.271875
+INFO:root:Epoch[9] Train-top_k_accuracy_5=0.527344
+INFO:root:Epoch[9] Time cost=720.092
+INFO:root:Epoch[9] Validation-accuracy=0.289363
+INFO:root:Epoch[9] Validation-top_k_accuracy_5=0.583534
+INFO:root:Epoch[10] Batch [20]	Speed: 69.86 samples/sec	accuracy=0.266369	top_k_accuracy_5=0.532738
+INFO:root:Epoch[10] Batch [40]	Speed: 69.80 samples/sec	accuracy=0.255859	top_k_accuracy_5=0.539844
+INFO:root:Epoch[10] Batch [60]	Speed: 69.93 samples/sec	accuracy=0.265234	top_k_accuracy_5=0.541406
+INFO:root:Epoch[10] Batch [80]	Speed: 68.96 samples/sec	accuracy=0.266016	top_k_accuracy_5=0.545312
+INFO:root:Epoch[10] Batch [100]	Speed: 70.06 samples/sec	accuracy=0.249219	top_k_accuracy_5=0.542188
+INFO:root:Epoch[10] Batch [120]	Speed: 69.22 samples/sec	accuracy=0.274219	top_k_accuracy_5=0.558984
+INFO:root:Epoch[10] Batch [140]	Speed: 69.64 samples/sec	accuracy=0.273047	top_k_accuracy_5=0.560156
+INFO:root:Epoch[10] Batch [160]	Speed: 70.19 samples/sec	accuracy=0.260547	top_k_accuracy_5=0.550781
+INFO:root:Epoch[10] Batch [180]	Speed: 69.63 samples/sec	accuracy=0.261719	top_k_accuracy_5=0.553906
+INFO:root:Epoch[10] Batch [200]	Speed: 69.40 samples/sec	accuracy=0.268359	top_k_accuracy_5=0.547266
+INFO:root:Epoch[10] Batch [220]	Speed: 68.24 samples/sec	accuracy=0.264453	top_k_accuracy_5=0.547266
+INFO:root:Epoch[10] Batch [240]	Speed: 69.70 samples/sec	accuracy=0.255469	top_k_accuracy_5=0.548047
+INFO:root:Epoch[10] Batch [260]	Speed: 70.69 samples/sec	accuracy=0.255078	top_k_accuracy_5=0.533203
+INFO:root:Epoch[10] Batch [280]	Speed: 68.36 samples/sec	accuracy=0.255078	top_k_accuracy_5=0.553125
+INFO:root:Epoch[10] Batch [300]	Speed: 70.66 samples/sec	accuracy=0.265234	top_k_accuracy_5=0.554688
+INFO:root:Epoch[10] Batch [320]	Speed: 70.00 samples/sec	accuracy=0.252734	top_k_accuracy_5=0.537500
+INFO:root:Epoch[10] Batch [340]	Speed: 68.78 samples/sec	accuracy=0.280078	top_k_accuracy_5=0.568359
+INFO:root:Epoch[10] Batch [360]	Speed: 70.21 samples/sec	accuracy=0.268359	top_k_accuracy_5=0.579297
+INFO:root:Epoch[10] Batch [380]	Speed: 70.84 samples/sec	accuracy=0.263672	top_k_accuracy_5=0.553516
+INFO:root:Epoch[10] Train-accuracy=0.269097
+INFO:root:Epoch[10] Train-top_k_accuracy_5=0.542535
+INFO:root:Epoch[10] Time cost=715.476
+INFO:root:Epoch[10] Validation-accuracy=0.299279
+INFO:root:Epoch[10] Validation-top_k_accuracy_5=0.584635
+INFO:root:Epoch[11] Batch [20]	Speed: 70.18 samples/sec	accuracy=0.260045	top_k_accuracy_5=0.559524
+INFO:root:Epoch[11] Batch [40]	Speed: 69.91 samples/sec	accuracy=0.269141	top_k_accuracy_5=0.557813
+INFO:root:Epoch[11] Batch [60]	Speed: 69.52 samples/sec	accuracy=0.258203	top_k_accuracy_5=0.556641
+INFO:root:Epoch[11] Batch [80]	Speed: 69.58 samples/sec	accuracy=0.268750	top_k_accuracy_5=0.565234
+INFO:root:Epoch[11] Batch [100]	Speed: 69.94 samples/sec	accuracy=0.264062	top_k_accuracy_5=0.572266
+INFO:root:Epoch[11] Batch [120]	Speed: 69.63 samples/sec	accuracy=0.261328	top_k_accuracy_5=0.583203
+INFO:root:Epoch[11] Batch [140]	Speed: 71.77 samples/sec	accuracy=0.271094	top_k_accuracy_5=0.558594
+INFO:root:Epoch[11] Batch [160]	Speed: 69.88 samples/sec	accuracy=0.278906	top_k_accuracy_5=0.563672
+INFO:root:Epoch[11] Batch [180]	Speed: 69.32 samples/sec	accuracy=0.271094	top_k_accuracy_5=0.574609
+INFO:root:Epoch[11] Batch [200]	Speed: 68.66 samples/sec	accuracy=0.262891	top_k_accuracy_5=0.566016
+INFO:root:Epoch[11] Batch [220]	Speed: 69.35 samples/sec	accuracy=0.274609	top_k_accuracy_5=0.587109
+INFO:root:Epoch[11] Batch [240]	Speed: 70.62 samples/sec	accuracy=0.260547	top_k_accuracy_5=0.551953
+INFO:root:Epoch[11] Batch [260]	Speed: 69.07 samples/sec	accuracy=0.276172	top_k_accuracy_5=0.563672
+INFO:root:Epoch[11] Batch [280]	Speed: 70.45 samples/sec	accuracy=0.268359	top_k_accuracy_5=0.556641
+INFO:root:Epoch[11] Batch [300]	Speed: 69.59 samples/sec	accuracy=0.269922	top_k_accuracy_5=0.557422
+INFO:root:Epoch[11] Batch [320]	Speed: 69.59 samples/sec	accuracy=0.274609	top_k_accuracy_5=0.565234
+INFO:root:Epoch[11] Batch [340]	Speed: 69.30 samples/sec	accuracy=0.294531	top_k_accuracy_5=0.584375
+INFO:root:Epoch[11] Batch [360]	Speed: 69.96 samples/sec	accuracy=0.289453	top_k_accuracy_5=0.592969
+INFO:root:Epoch[11] Batch [380]	Speed: 69.22 samples/sec	accuracy=0.268750	top_k_accuracy_5=0.571094
+INFO:root:Epoch[11] Train-accuracy=0.281250
+INFO:root:Epoch[11] Train-top_k_accuracy_5=0.575000
+INFO:root:Epoch[11] Time cost=716.351
+INFO:root:Epoch[11] Validation-accuracy=0.336038
+INFO:root:Epoch[11] Validation-top_k_accuracy_5=0.646935
+INFO:root:Epoch[12] Batch [20]	Speed: 69.57 samples/sec	accuracy=0.265625	top_k_accuracy_5=0.563244
+INFO:root:Epoch[12] Batch [40]	Speed: 70.74 samples/sec	accuracy=0.282422	top_k_accuracy_5=0.587891
+INFO:root:Epoch[12] Batch [60]	Speed: 69.05 samples/sec	accuracy=0.276953	top_k_accuracy_5=0.572266
+INFO:root:Epoch[12] Batch [80]	Speed: 70.12 samples/sec	accuracy=0.271094	top_k_accuracy_5=0.560937
+INFO:root:Epoch[12] Batch [100]	Speed: 68.27 samples/sec	accuracy=0.291797	top_k_accuracy_5=0.588672
+INFO:root:Epoch[12] Batch [120]	Speed: 70.14 samples/sec	accuracy=0.297656	top_k_accuracy_5=0.582422
+INFO:root:Epoch[12] Batch [140]	Speed: 69.61 samples/sec	accuracy=0.283594	top_k_accuracy_5=0.583984
+INFO:root:Epoch[12] Batch [160]	Speed: 69.85 samples/sec	accuracy=0.282813	top_k_accuracy_5=0.587500
+INFO:root:Epoch[12] Batch [180]	Speed: 69.78 samples/sec	accuracy=0.292969	top_k_accuracy_5=0.587109
+INFO:root:Epoch[12] Batch [200]	Speed: 71.00 samples/sec	accuracy=0.282422	top_k_accuracy_5=0.578906
+INFO:root:Epoch[12] Batch [220]	Speed: 69.09 samples/sec	accuracy=0.290234	top_k_accuracy_5=0.593359
+INFO:root:Epoch[12] Batch [240]	Speed: 69.68 samples/sec	accuracy=0.290234	top_k_accuracy_5=0.584375
+INFO:root:Epoch[12] Batch [260]	Speed: 70.38 samples/sec	accuracy=0.278906	top_k_accuracy_5=0.580469
+INFO:root:Epoch[12] Batch [280]	Speed: 68.47 samples/sec	accuracy=0.279297	top_k_accuracy_5=0.575781
+INFO:root:Epoch[12] Batch [300]	Speed: 69.53 samples/sec	accuracy=0.280469	top_k_accuracy_5=0.587109
+INFO:root:Epoch[12] Batch [320]	Speed: 69.73 samples/sec	accuracy=0.273438	top_k_accuracy_5=0.571094
+INFO:root:Epoch[12] Batch [340]	Speed: 70.70 samples/sec	accuracy=0.284375	top_k_accuracy_5=0.587891
+INFO:root:Epoch[12] Batch [360]	Speed: 68.78 samples/sec	accuracy=0.295703	top_k_accuracy_5=0.597266
+INFO:root:Epoch[12] Batch [380]	Speed: 69.67 samples/sec	accuracy=0.298047	top_k_accuracy_5=0.598437
+INFO:root:Epoch[12] Train-accuracy=0.291406
+INFO:root:Epoch[12] Train-top_k_accuracy_5=0.581250
+INFO:root:Epoch[12] Time cost=717.546
+INFO:root:Epoch[12] Validation-accuracy=0.317007
+INFO:root:Epoch[12] Validation-top_k_accuracy_5=0.612179
+INFO:root:Epoch[13] Batch [20]	Speed: 69.20 samples/sec	accuracy=0.287202	top_k_accuracy_5=0.583333
+INFO:root:Epoch[13] Batch [40]	Speed: 69.35 samples/sec	accuracy=0.288672	top_k_accuracy_5=0.565234
+INFO:root:Epoch[13] Batch [60]	Speed: 70.48 samples/sec	accuracy=0.284766	top_k_accuracy_5=0.581250
+INFO:root:Epoch[13] Batch [80]	Speed: 69.01 samples/sec	accuracy=0.294141	top_k_accuracy_5=0.577344
+INFO:root:Epoch[13] Batch [100]	Speed: 69.42 samples/sec	accuracy=0.298438	top_k_accuracy_5=0.600781
+INFO:root:Epoch[13] Batch [120]	Speed: 70.43 samples/sec	accuracy=0.302344	top_k_accuracy_5=0.583203
+INFO:root:Epoch[13] Batch [140]	Speed: 69.23 samples/sec	accuracy=0.299219	top_k_accuracy_5=0.587500
+INFO:root:Epoch[13] Batch [160]	Speed: 67.89 samples/sec	accuracy=0.279687	top_k_accuracy_5=0.579297
+INFO:root:Epoch[13] Batch [180]	Speed: 69.66 samples/sec	accuracy=0.285938	top_k_accuracy_5=0.585156
+INFO:root:Epoch[13] Batch [200]	Speed: 69.87 samples/sec	accuracy=0.296484	top_k_accuracy_5=0.603125
+INFO:root:Epoch[13] Batch [220]	Speed: 69.17 samples/sec	accuracy=0.307812	top_k_accuracy_5=0.592578
+INFO:root:Epoch[13] Batch [240]	Speed: 69.58 samples/sec	accuracy=0.303125	top_k_accuracy_5=0.585547
+INFO:root:Epoch[13] Batch [260]	Speed: 70.69 samples/sec	accuracy=0.289844	top_k_accuracy_5=0.584766
+INFO:root:Epoch[13] Batch [280]	Speed: 68.79 samples/sec	accuracy=0.300000	top_k_accuracy_5=0.594922
+INFO:root:Epoch[13] Batch [300]	Speed: 69.70 samples/sec	accuracy=0.302344	top_k_accuracy_5=0.585156
+INFO:root:Epoch[13] Batch [320]	Speed: 69.66 samples/sec	accuracy=0.268750	top_k_accuracy_5=0.581641
+INFO:root:Epoch[13] Batch [340]	Speed: 69.44 samples/sec	accuracy=0.294922	top_k_accuracy_5=0.597656
+INFO:root:Epoch[13] Batch [360]	Speed: 69.43 samples/sec	accuracy=0.294922	top_k_accuracy_5=0.605859
+INFO:root:Epoch[13] Batch [380]	Speed: 69.13 samples/sec	accuracy=0.298047	top_k_accuracy_5=0.603516
+INFO:root:Epoch[13] Train-accuracy=0.296875
+INFO:root:Epoch[13] Train-top_k_accuracy_5=0.593750
+INFO:root:Epoch[13] Time cost=716.824
+INFO:root:Epoch[13] Validation-accuracy=0.305889
+INFO:root:Epoch[13] Validation-top_k_accuracy_5=0.609275
+INFO:root:Epoch[14] Batch [20]	Speed: 69.02 samples/sec	accuracy=0.299479	top_k_accuracy_5=0.604539
+INFO:root:Epoch[14] Batch [40]	Speed: 68.68 samples/sec	accuracy=0.307812	top_k_accuracy_5=0.609375
+INFO:root:Epoch[14] Batch [60]	Speed: 70.43 samples/sec	accuracy=0.293750	top_k_accuracy_5=0.593750
+INFO:root:Epoch[14] Batch [80]	Speed: 68.49 samples/sec	accuracy=0.298828	top_k_accuracy_5=0.592969
+INFO:root:Epoch[14] Batch [100]	Speed: 69.67 samples/sec	accuracy=0.304297	top_k_accuracy_5=0.603906
+INFO:root:Epoch[14] Batch [120]	Speed: 70.79 samples/sec	accuracy=0.291797	top_k_accuracy_5=0.591406
+INFO:root:Epoch[14] Batch [140]	Speed: 69.86 samples/sec	accuracy=0.305078	top_k_accuracy_5=0.597656
+INFO:root:Epoch[14] Batch [160]	Speed: 69.28 samples/sec	accuracy=0.296094	top_k_accuracy_5=0.601562
+INFO:root:Epoch[14] Batch [180]	Speed: 68.80 samples/sec	accuracy=0.303906	top_k_accuracy_5=0.589844
+INFO:root:Epoch[14] Batch [200]	Speed: 69.87 samples/sec	accuracy=0.307812	top_k_accuracy_5=0.604688
+INFO:root:Epoch[14] Batch [220]	Speed: 69.81 samples/sec	accuracy=0.295312	top_k_accuracy_5=0.606641
+INFO:root:Epoch[14] Batch [240]	Speed: 68.98 samples/sec	accuracy=0.287500	top_k_accuracy_5=0.578516
+INFO:root:Epoch[14] Batch [260]	Speed: 69.27 samples/sec	accuracy=0.295703	top_k_accuracy_5=0.596484
+INFO:root:Epoch[14] Batch [280]	Speed: 69.17 samples/sec	accuracy=0.305859	top_k_accuracy_5=0.610938
+INFO:root:Epoch[14] Batch [300]	Speed: 69.70 samples/sec	accuracy=0.291797	top_k_accuracy_5=0.598828
+INFO:root:Epoch[14] Batch [320]	Speed: 69.56 samples/sec	accuracy=0.303906	top_k_accuracy_5=0.597266
+INFO:root:Epoch[14] Batch [340]	Speed: 70.48 samples/sec	accuracy=0.308594	top_k_accuracy_5=0.605078
+INFO:root:Epoch[14] Batch [360]	Speed: 68.92 samples/sec	accuracy=0.305078	top_k_accuracy_5=0.620313
+INFO:root:Epoch[14] Batch [380]	Speed: 69.31 samples/sec	accuracy=0.300000	top_k_accuracy_5=0.593359
+INFO:root:Epoch[14] Train-accuracy=0.335156
+INFO:root:Epoch[14] Train-top_k_accuracy_5=0.631250
+INFO:root:Epoch[14] Time cost=718.584
+INFO:root:Epoch[14] Validation-accuracy=0.347356
+INFO:root:Epoch[14] Validation-top_k_accuracy_5=0.658654
+INFO:root:Epoch[15] Batch [20]	Speed: 67.93 samples/sec	accuracy=0.306920	top_k_accuracy_5=0.592634
+INFO:root:Epoch[15] Batch [40]	Speed: 70.60 samples/sec	accuracy=0.307031	top_k_accuracy_5=0.594531
+INFO:root:Epoch[15] Batch [60]	Speed: 69.70 samples/sec	accuracy=0.296094	top_k_accuracy_5=0.589063
+INFO:root:Epoch[15] Batch [80]	Speed: 70.68 samples/sec	accuracy=0.298828	top_k_accuracy_5=0.594922
+INFO:root:Epoch[15] Batch [100]	Speed: 69.80 samples/sec	accuracy=0.317969	top_k_accuracy_5=0.600781
+INFO:root:Epoch[15] Batch [120]	Speed: 69.17 samples/sec	accuracy=0.320312	top_k_accuracy_5=0.621484
+INFO:root:Epoch[15] Batch [140]	Speed: 70.80 samples/sec	accuracy=0.317578	top_k_accuracy_5=0.617188
+INFO:root:Epoch[15] Batch [160]	Speed: 68.99 samples/sec	accuracy=0.295703	top_k_accuracy_5=0.590625
+INFO:root:Epoch[15] Batch [180]	Speed: 70.04 samples/sec	accuracy=0.308984	top_k_accuracy_5=0.594531
+INFO:root:Epoch[15] Batch [200]	Speed: 69.61 samples/sec	accuracy=0.311719	top_k_accuracy_5=0.603125
+INFO:root:Epoch[15] Batch [220]	Speed: 69.95 samples/sec	accuracy=0.289453	top_k_accuracy_5=0.590625
+INFO:root:Epoch[15] Batch [240]	Speed: 71.91 samples/sec	accuracy=0.326562	top_k_accuracy_5=0.613281
+INFO:root:Epoch[15] Batch [260]	Speed: 69.55 samples/sec	accuracy=0.305859	top_k_accuracy_5=0.610156
+INFO:root:Epoch[15] Batch [280]	Speed: 71.33 samples/sec	accuracy=0.305078	top_k_accuracy_5=0.594141
+INFO:root:Epoch[15] Batch [300]	Speed: 68.50 samples/sec	accuracy=0.294531	top_k_accuracy_5=0.588672
+INFO:root:Epoch[15] Batch [320]	Speed: 69.50 samples/sec	accuracy=0.292969	top_k_accuracy_5=0.617578
+INFO:root:Epoch[15] Batch [340]	Speed: 68.90 samples/sec	accuracy=0.303125	top_k_accuracy_5=0.611328
+INFO:root:Epoch[15] Batch [360]	Speed: 68.39 samples/sec	accuracy=0.313281	top_k_accuracy_5=0.619922
+INFO:root:Epoch[15] Batch [380]	Speed: 70.52 samples/sec	accuracy=0.305859	top_k_accuracy_5=0.599609
+INFO:root:Epoch[15] Train-accuracy=0.299479
+INFO:root:Epoch[15] Train-top_k_accuracy_5=0.616319
+INFO:root:Epoch[15] Time cost=713.758
+INFO:root:Epoch[15] Validation-accuracy=0.335837
+INFO:root:Epoch[15] Validation-top_k_accuracy_5=0.641326
+INFO:root:Epoch[16] Batch [20]	Speed: 68.08 samples/sec	accuracy=0.295015	top_k_accuracy_5=0.600446
+INFO:root:Epoch[16] Batch [40]	Speed: 68.58 samples/sec	accuracy=0.303125	top_k_accuracy_5=0.612109
+INFO:root:Epoch[16] Batch [60]	Speed: 70.25 samples/sec	accuracy=0.307422	top_k_accuracy_5=0.607812
+INFO:root:Epoch[16] Batch [80]	Speed: 72.44 samples/sec	accuracy=0.304297	top_k_accuracy_5=0.604688
+INFO:root:Epoch[16] Batch [100]	Speed: 69.55 samples/sec	accuracy=0.325000	top_k_accuracy_5=0.625000
+INFO:root:Epoch[16] Batch [120]	Speed: 69.40 samples/sec	accuracy=0.317578	top_k_accuracy_5=0.613281
+INFO:root:Epoch[16] Batch [140]	Speed: 69.03 samples/sec	accuracy=0.304688	top_k_accuracy_5=0.618750
+INFO:root:Epoch[16] Batch [160]	Speed: 70.45 samples/sec	accuracy=0.326953	top_k_accuracy_5=0.621094
+INFO:root:Epoch[16] Batch [180]	Speed: 69.41 samples/sec	accuracy=0.321094	top_k_accuracy_5=0.617969
+INFO:root:Epoch[16] Batch [200]	Speed: 68.71 samples/sec	accuracy=0.302344	top_k_accuracy_5=0.602734
+INFO:root:Epoch[16] Batch [220]	Speed: 68.33 samples/sec	accuracy=0.316016	top_k_accuracy_5=0.613672
+INFO:root:Epoch[16] Batch [240]	Speed: 70.51 samples/sec	accuracy=0.291406	top_k_accuracy_5=0.610156
+INFO:root:Epoch[16] Batch [260]	Speed: 69.67 samples/sec	accuracy=0.302734	top_k_accuracy_5=0.607812
+INFO:root:Epoch[16] Batch [280]	Speed: 69.73 samples/sec	accuracy=0.332813	top_k_accuracy_5=0.621094
+INFO:root:Epoch[16] Batch [300]	Speed: 70.59 samples/sec	accuracy=0.325781	top_k_accuracy_5=0.617578
+INFO:root:Epoch[16] Batch [320]	Speed: 69.00 samples/sec	accuracy=0.305469	top_k_accuracy_5=0.596094
+INFO:root:Epoch[16] Batch [340]	Speed: 70.40 samples/sec	accuracy=0.297266	top_k_accuracy_5=0.605469
+INFO:root:Epoch[16] Batch [360]	Speed: 69.75 samples/sec	accuracy=0.338281	top_k_accuracy_5=0.634766
+INFO:root:Epoch[16] Batch [380]	Speed: 69.29 samples/sec	accuracy=0.319922	top_k_accuracy_5=0.610156
+INFO:root:Epoch[16] Train-accuracy=0.314844
+INFO:root:Epoch[16] Train-top_k_accuracy_5=0.618750
+INFO:root:Epoch[16] Time cost=717.568
