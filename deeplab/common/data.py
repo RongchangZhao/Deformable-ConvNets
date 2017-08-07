@@ -5,8 +5,8 @@ import numpy as np
 
 def add_data_args(parser):
     data = parser.add_argument_group('Data', 'the input images')
-    data.add_argument('--data-train', type=str, help='the training data')
-    data.add_argument('--data-val', type=str, help='the validation data')
+    data.add_argument('--data-train', type=str, help='the training data lst file')
+    data.add_argument('--data-val', type=str, help='the validation data lst file')
     data.add_argument('--rgb-mean', type=str, default='123.68,116.779,103.939',
                       help='a tuple of size 3 for the mean rgb')
     data.add_argument('--pad-size', type=int, default=0,
@@ -91,6 +91,10 @@ class SyntheticDataIter(DataIter):
 
 def get_rec_iter(args, kv=None):
     image_shape = tuple([int(l) for l in args.image_shape.split(',')])
+    dtype = np.float32
+    if 'dtype' in args:
+        if args.dtype == 'float16':
+            dtype = np.float16
     if 'benchmark' in args and args.benchmark:
         data_shape = (args.batch_size,) + image_shape
         train = SyntheticDataIter(args.num_classes, data_shape, 500, np.float32)
@@ -100,6 +104,9 @@ def get_rec_iter(args, kv=None):
     else:
         (rank, nworker) = (0, 1)
     rgb_mean = [float(i) for i in args.rgb_mean.split(',')]
+    
+    
+    
     train = mx.io.ImageRecordIter(
         path_imgrec         = args.data_train,
         label_width         = 1,
@@ -144,3 +151,41 @@ def get_rec_iter(args, kv=None):
         num_parts           = nworker,
         part_index          = rank)
     return (train, val)
+    
+    '''
+    train = mx.img.ImageIter(
+        label_width         = 1,
+        path_root    =     '/data1/deepinsight/ILSVRC2012/ILSVRC/Data/CLS-LOC/train/', 
+        path_imglist      = args.data_train,
+        #path_imgrec      = 'data/train.rec',
+        #path_imgidx      = 'data/train.idx',
+        data_shape          = image_shape,
+        batch_size          = args.batch_size,
+        rand_crop           = True,
+        rand_resize         = True,
+        rand_mirror         = True,
+        shuffle             = True,
+        brightness          = 0.4,
+        contrast            = 0.4,
+        saturation          = 0.4,
+        pca_noise           = 0.1,
+        num_parts           = nworker,
+        part_index          = rank)
+    #if args.data_val is None:
+    #    return (train, None)
+    val = mx.img.ImageIter(
+        label_width         = 1,
+        path_root    = '/data1/deepinsight/ILSVRC2012/ILSVRC/Data/CLS-LOC/val/', 
+        path_imglist        = args.data_val,
+        #path_imgrec      = 'data/val.rec',
+        #path_imgidx     = 'data/val.idx',
+        batch_size          = args.batch_size,
+        data_shape          =  image_shape,
+        resize              = 360, 
+        rand_crop           = False,
+        rand_resize         = False,
+        rand_mirror         = False,
+        num_parts           = nworker,
+        part_index          = rank)
+    return (train, val)
+    '''

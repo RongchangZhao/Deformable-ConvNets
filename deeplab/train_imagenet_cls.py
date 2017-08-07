@@ -21,10 +21,10 @@ if __name__ == '__main__':
         # network
         network          = 'irnext',
         num_layers       = 50,
-        outfeature       = 2560,
+        outfeature       = 2048,
         bottle_neck      = 1,
-        expansion        = 0.5, 
-        num_group        = 64,
+        expansion        = 4.0, 
+        num_group        = 1,
         dilpat           = '', 
         irv2             = False, 
         deform           = 0, 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         num_examples     = 1281167,
         image_shape      = '3,224,224',
         lastout          = 7,
-        min_random_scale = 0.875, # if input image has min size k, suggest to use
+        min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
         num_epochs       = 80,

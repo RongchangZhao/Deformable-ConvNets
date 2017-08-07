@@ -68,7 +68,7 @@ def add_fit_args(parser):
                        help='the optimizer type')
     train.add_argument('--mom', type=float, default=0.9,
                        help='momentum for sgd')
-    train.add_argument('--wd', type=float, default=0.0002,
+    train.add_argument('--wd', type=float, default=0.0001,
                        help='weight decay for sgd')
     train.add_argument('--batch-size', type=int, default=128,
                        help='the batch size')
