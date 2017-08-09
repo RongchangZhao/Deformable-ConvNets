@@ -24,7 +24,7 @@ if __name__ == '__main__':
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4.0, 
-        num_group        = 1,
+        num_group        = 16,
         dilpat           = '', 
         irv2             = False, 
         deform           = 0, 
