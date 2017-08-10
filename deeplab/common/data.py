@@ -106,7 +106,7 @@ def get_rec_iter(args, kv=None):
     rgb_mean = [float(i) for i in args.rgb_mean.split(',')]
     
     
-    
+    '''
     train = mx.io.ImageRecordIter(
         path_imgrec         = args.data_train,
         label_width         = 1,
@@ -161,7 +161,7 @@ def get_rec_iter(args, kv=None):
         #path_imgidx      = 'data/train.idx',
         data_shape          = image_shape,
         batch_size          = args.batch_size,
-        mean                = np.array(rgb_mean),
+        #mean                = np.array(rgb_mean),
         rand_crop           = True,
         rand_resize         = True,
         rand_mirror         = True,
@@ -182,7 +182,7 @@ def get_rec_iter(args, kv=None):
         #path_imgidx     = 'data/val.idx',
         batch_size          = args.batch_size,
         data_shape          =  image_shape,
-        mean                = np.array(rgb_mean),
+        #mean                = np.array(rgb_mean),
         resize              = 256, 
         rand_crop           = False,
         rand_resize         = False,
@@ -190,4 +190,3 @@ def get_rec_iter(args, kv=None):
         num_parts           = nworker,
         part_index          = rank)
     return (train, val)
-    '''

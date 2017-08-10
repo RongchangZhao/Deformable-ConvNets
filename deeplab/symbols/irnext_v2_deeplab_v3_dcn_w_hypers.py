@@ -282,6 +282,10 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
         body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
 
+        # To avoid mean_rgb, use another BN-Relu
+        
+        body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn01')
+        body = mx.sym.Activation(data=body, act_type='relu', name='relu01')
         
     # Unit Params List:
     # data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
