@@ -21,10 +21,10 @@ if __name__ == '__main__':
         # network
         network          = 'irnext',
         num_layers       = 50,
-        outfeature       = 2048,
+        outfeature       = 1536,
         bottle_neck      = 1,
-        expansion        = 4.0, 
-        num_group        = 16,
+        expansion        = 0.5, 
+        num_group        = 96,
         dilpat           = '', 
         irv2             = False, 
         deform           = 0, 
