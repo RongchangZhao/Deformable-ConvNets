@@ -7,10 +7,11 @@ import logging
 
 import seg_carv_7_init_from_cls
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
-from data import FileIter
-from data import BatchFileIter
-from solver import Solver
-from dice_metric import DiceMetric
+from seg_carv_1_data_loader import FileIter
+from seg_carv_1_data_loader import BatchFileIter
+from seg_carv_2_dicemetric import DiceMetric
+from seg_carv_3_solver import Solver
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
