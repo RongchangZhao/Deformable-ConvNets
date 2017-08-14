@@ -34,12 +34,12 @@ def main():
         cls_model_prefix = '-'.join(['CLS'] + args.model.split('-')[1:])
         
         deeplabnet = irnext_deeplab_dcn(**vars(args))
-        deeplabsym = deeplabnet.get_cls_symbol()
+        deeplabsym = deeplabnet.get_seg_symbol()
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 1e-5
-        run_epochs = 5
+        lr = 0.001
+        run_epochs = 20
         load_epoch = 10
     else:
         raise Exception("error")
@@ -54,25 +54,24 @@ def main():
     print('cutoff size', cutoff)
     
     args.batch_size = len(devs)
-    
-    _, deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
-    
-    ctx = mx.cpu()
-    
+      
     if not args.retrain:
+        ctx = mx.cpu()
+        
+        _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
         deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
                                      deeplabsym, deeplab_args, deeplab_auxs)
             
             
             
     train_dataiter = BatchFileIter(
-        path_imglist         = "./runs_carv/train.lst",
+        path_imglist         = "../../carvana_train.lst",
         cut_off_size         = cutoff,
         rgb_mean             = (123.68, 116.779, 103.939),
         batch_size           = args.batch_size,
         )
     val_dataiter = BatchFileIter(
-        path_imglist         = "./runs_carv/val.lst",
+        path_imglist         = "../../carvana_val.lst",
         cut_off_size         = cutoff,
         rgb_mean             = (123.68, 116.779, 103.939),
         batch_size           = args.batch_size,
@@ -103,8 +102,8 @@ def main():
         optimizer          = 'sgd',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
-        arg_params         = deeplab_args,
-        aux_params         = deeplab_auxs,
+        # arg_params         = deeplab_args,
+        # aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 10),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
@@ -118,10 +117,10 @@ if __name__ == "__main__":
         # network
         network          = 'irnext',
         num_layers       = 50,
-        outfeature       = 1536,
+        outfeature       = 1024,
         bottle_neck      = 1,
-        expansion        = 0.5, 
-        num_group        = 96,
+        expansion        = 1.0, 
+        num_group        = 32,
         dilpat           = '', 
         irv2             = False, 
         deform           = 0, 
@@ -139,7 +138,6 @@ if __name__ == "__main__":
         #lr_step_epochs   = '30,50,70',
         dtype            = 'float32'
     )
-    args = parser.parse_args()
     
     
     parser.add_argument('--model', default='DeeplabV3-ResNeXt-50L16X4D4XP',
@@ -150,10 +148,11 @@ if __name__ == "__main__":
         help='cutoff size.')
     parser.add_argument('--gpus', default='',
         help='gpus for use.')
-    parser.add_argument('--retrain', action='store_true', default=False,
+    parser.add_argument('--retrain', action='store_true', default=True,
         help='true means continue training.')
     args = parser.parse_args()
     logging.info(args)
+    
     main()
 
 

@@ -332,7 +332,8 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         # Deeplab v1 Use Stride_List = [1,2,2,1] So a 16x Deconv Needed
         # Deeplab v2/v3 Use Stride_List = [1,2,1,1] So 1/8 gt and 1/8 img compute loss
         # Pytorch-Deeplab Use 1x+0.707x+0.5x Multi-Scale Shared Params Trick
-        stride_plan = seg_stride_plan
+        stride_plan = seg_stride_list
+        
         dilation_plan = [1,1,1,1] if dilpat not in dilation_dict else dilation_dict[dilpat]
         
         for i in range(num_stages):
@@ -502,12 +503,12 @@ class irnext_deeplab_dcn():
                           taskmode='CLS', 
                           seg_stride_mode='', dtype='float32', **kwargs)
         
-        
     def get_seg_symbol(self, **kwargs):
         
         data = mx.symbol.Variable(name="data")
-        seg_cls_gt = mx.symbol.Variable(name="label")
-        conv_feat = getconv(data,
+        seg_cls_gt = mx.symbol.Variable(name="softmax_label")
+        conv_feat = get_conv(data,
+                            self.num_classes,
                             self.num_layers,
                             self.outfeature,
                             bottle_neck=self.bottle_neck,
@@ -531,11 +532,11 @@ class irnext_deeplab_dcn():
         relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
         
 
-        if seg_stride_mode == '4x':
+        if self.seg_stride_mode == '4x':
             upstride = 4
-        elif seg_stride_mode == '8x':
+        elif self.seg_stride_mode == '8x':
             upstride = 8
-        elif seg_stride_mode == '16x':
+        elif self.seg_stride_mode == '16x':
             upstride = 16
         else:
             upstride = 16
@@ -545,16 +546,17 @@ class irnext_deeplab_dcn():
             
             score_bias = mx.symbol.Variable('score_bias', lr_mult=2.0)
             score_weight = mx.symbol.Variable('score_weight', lr_mult=1.0)
-            score = mx.symbol.Convolution(data=relu_fc6, kernel=(1, 1), pad=(0, 0), num_filter=self.numclasses, name="score",
+            score = mx.symbol.Convolution(data=relu_fc6, kernel=(1, 1), pad=(0, 0), num_filter=self.num_classes, name="score",
                                       bias=score_bias, weight=score_weight, workspace=self.workspace)
-            upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(upstride*2, upstride*2), 
+            upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                              stride=(upstride, upstride),
-                                             num_group=num_classes, no_bias=True, name='upsampling',
+                                             num_group=self.num_classes, no_bias=True, name='upsampling',
                                              attr={'lr_mult': '0.0'}, workspace=self.workspace)
         
             croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
             softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
                                           use_ignore=True, ignore_label=255, name="softmax")
+            
 
             return softmax
         elif self.deeplabversion > 1:
@@ -573,9 +575,9 @@ class irnext_deeplab_dcn():
                     exec('score = score + score_{ind}'.format(ind=i))
             
 
-            upsampling = mx.symbol.Deconvolution(data=score, num_filter=num_classes, kernel=(upstride*2, upstride*2), 
+            upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                              stride=(upstride, upstride),
-                                             num_group=num_classes, no_bias=True, name='upsampling',
+                                             num_group=self.num_classes, no_bias=True, name='upsampling',
                                              attr={'lr_mult': '0.0'}, workspace=self.workspace)
         
             croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
