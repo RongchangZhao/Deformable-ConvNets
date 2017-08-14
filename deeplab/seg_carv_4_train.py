@@ -127,7 +127,7 @@ if __name__ == "__main__":
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
         # data
-        #num_classes      = 1000,
+        num_classes      = 2,
         #num_examples     = 1281167,
         #image_shape      = '3,224,224',
         #lastout          = 7,
