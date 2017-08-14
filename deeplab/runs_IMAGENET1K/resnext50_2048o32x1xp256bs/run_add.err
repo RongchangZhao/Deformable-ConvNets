@@ -10900,3 +10900,9 @@ INFO:root:Epoch[53] Batch [2640]	Speed: 217.95 samples/sec	accuracy=0.822852	top
 INFO:root:Epoch[53] Batch [2660]	Speed: 207.32 samples/sec	accuracy=0.813867	top_k_accuracy_5=0.954688
 INFO:root:Epoch[53] Batch [2680]	Speed: 210.26 samples/sec	accuracy=0.820508	top_k_accuracy_5=0.952148
 INFO:root:Epoch[53] Batch [2700]	Speed: 208.76 samples/sec	accuracy=0.819922	top_k_accuracy_5=0.949219
+INFO:root:Epoch[53] Batch [2720]	Speed: 216.53 samples/sec	accuracy=0.818945	top_k_accuracy_5=0.953711
+INFO:root:Epoch[53] Batch [2740]	Speed: 213.94 samples/sec	accuracy=0.814063	top_k_accuracy_5=0.952344
+INFO:root:Epoch[53] Batch [2760]	Speed: 213.19 samples/sec	accuracy=0.802930	top_k_accuracy_5=0.950586
+INFO:root:Epoch[53] Batch [2780]	Speed: 212.58 samples/sec	accuracy=0.816016	top_k_accuracy_5=0.946484
+INFO:root:Epoch[53] Batch [2800]	Speed: 209.06 samples/sec	accuracy=0.812305	top_k_accuracy_5=0.948828
+INFO:root:Epoch[53] Batch [2820]	Speed: 207.27 samples/sec	accuracy=0.816211	top_k_accuracy_5=0.949023
