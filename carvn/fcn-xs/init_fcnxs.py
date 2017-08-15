@@ -33,8 +33,8 @@ def init_from_vgg16(ctx, fcnxs_symbol, vgg16fc_args, vgg16fc_auxs):
     label_shape = (1, data_shape[2], data_shape[3])
     arg_names = fcnxs_symbol.list_arguments()
     arg_shapes, _, _ = fcnxs_symbol.infer_shape(data=data_shape, softmax_label=label_shape)
-    print(arg_shapes)
-    print(arg_names)
+    #print(arg_shapes)
+    #print(arg_names)
     rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)
             if x[0] in ['score_weight', 'score_bias', 'score_pool4_weight', 'score_pool4_bias', \
                         'score_pool3_weight', 'score_pool3_bias']])
@@ -63,8 +63,9 @@ def init_from_fcnxs(ctx, fcnxs_symbol, fcnxs_args_from, fcnxs_auxs_from):
             fcnxs_auxs[k] = mx.nd.zeros(v.shape, ctx)
             v.copyto(fcnxs_auxs[k])
     data_shape=(1,3,500,500)
+    label_shape = (1, data_shape[2], data_shape[3])
     arg_names = fcnxs_symbol.list_arguments()
-    arg_shapes, _, _ = fcnxs_symbol.infer_shape(data=data_shape)
+    arg_shapes, _, _ = fcnxs_symbol.infer_shape(data=data_shape, softmax_label=label_shape)
     rest_params = {}
     deconv_params = {}
     # this is fcn8s init from fcn16s
