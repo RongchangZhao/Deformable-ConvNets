@@ -63,7 +63,7 @@ def get_img(img_path):
   return img
 
 
-def get_mask_out(data):
+def get_mask_prob(data):
   global ctx, fcnxx, fcnxs_args, fcnxs_auxs
 
   if len(data.shape)==3:
@@ -76,35 +76,46 @@ def get_mask_out(data):
   exector = fcnxs.bind(ctx, fcnxs_args ,args_grad=None, grad_req="null", aux_states=fcnxs_args)
   exector.forward(is_train=False)
   output = exector.outputs[0]
-  #output = output.asnumpy()
-  out_img = np.uint8(np.squeeze(output.asnumpy().argmax(axis=1)))
+  prob = output.asnumpy()
+  #out_img = np.uint8(np.squeeze(prob.argmax(axis=1)))
+  out_prob = np.squeeze(prob)
+  #print(prob.shape, out_prob.shape)
+  return out_prob
+
+def prob_to_out(prob):
+  out_img = np.uint8(np.squeeze(prob.argmax(axis=0)))
   return out_img
 
 def get_mask(img_path, cutoff):
   img = get_img(img_path)
   if cutoff is None or cutoff<=0:
-    return get_mask_out(img)
+    prob = get_mask_prob(img)
+    return prob_to_out(prob)
 
-  mask = np.zeros( (img.shape[1], img.shape[2]), dtype=np.uint8 )
-  #print(img.shape)
-  #for x in [0, img.shape[1]-cutoff]:
-  #  for y in [0, img.shape[2]-cutoff]:
-  #    _img = img[:,x:(x+cutoff),y:(y+cutoff)]
-  #    _mask = get_mask_out(_img)
-  #    mask[x:(x+cutoff),y:(y+cutoff)] = _mask
-  for x in xrange(0, img.shape[1], cutoff):
-    xstart = x
-    xstop = min(xstart+cutoff,img.shape[1])
-    xstart = xstop-cutoff
-    for y in xrange(0, img.shape[2], cutoff):
-      ystart = y
-      ystop = min(ystart+cutoff,img.shape[2])
-      ystart = ystop-cutoff
-      print(xstart,ystart,xstop,ystop)
-      _img = img[:,xstart:xstop,ystart:ystop]
-      _mask = get_mask_out(_img)
-      mask[xstart:xstop,ystart:ystop] = _mask
-  return mask
+  mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
+  moves = [2,4] # moves in h,w
+  assert (img.shape[1]-cutoff)%(moves[0]-1)==0
+  assert (img.shape[2]-cutoff)%(moves[1]-1)==0
+  moves = [ (img.shape[1]-cutoff)/(moves[0]-1), (img.shape[2]-cutoff)/(moves[1]-1) ]
+  for h in xrange(0,img.shape[1]-cutoff+1,moves[0]):
+    for w in xrange(0, img.shape[2]-cutoff+1, moves[1]):
+      _img = img[:,h:(h+cutoff),w:(w+cutoff)]
+      #print(h,w)
+      _mask = get_mask_prob(_img)
+      mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
+  #for x in xrange(0, img.shape[1], cutoff):
+  #  xstart = x
+  #  xstop = min(xstart+cutoff,img.shape[1])
+  #  xstart = xstop-cutoff
+  #  for y in xrange(0, img.shape[2], cutoff):
+  #    ystart = y
+  #    ystop = min(ystart+cutoff,img.shape[2])
+  #    ystart = ystop-cutoff
+  #    #print(xstart,ystart,xstop,ystop)
+  #    _img = img[:,xstart:xstop,ystart:ystop]
+  #    _mask = get_mask_prob(_img)
+  #    mask[:,xstart:xstop,ystart:ystop] += _mask
+  return prob_to_out(mask)
 
 def rle_encode(mask_image):
   pixels = mask_image.flatten()
@@ -127,13 +138,13 @@ def main():
   global ctx, fcnxs, fcnxs_args, fcnxs_auxs
   DATA_ROOT = '/raid5data/dplearn/carvn'
   parser = argparse.ArgumentParser(description='carvn submit')
-  parser.add_argument('--model-dir', default='./model',
+  parser.add_argument('--model-dir', default='./model3',
       help='directory to save model.')
-  parser.add_argument('--epoch', type=int, default=5,
+  parser.add_argument('--epoch', type=int, default=1,
       help='load epoch.')
-  parser.add_argument('--gpu', type=int, default=0,
+  parser.add_argument('--gpu', type=int, default=1,
       help='gpu for use.')
-  parser.add_argument('--cutoff', type=int, default=959,
+  parser.add_argument('--cutoff', type=int, default=1000,
       help='cutoff size.')
   parser.add_argument('--parts', default='',
       help='test parts.')

@@ -140,8 +140,20 @@ def fcnxs_score(input, crop, offset, kernel=(64,64), stride=(32,32), numclass=21
                num_filter=numclass, workspace=workspace_default, name="bigscore")
     upscore = mx.symbol.Crop(*[bigscore, crop], offset=offset, name="upscore")
     # upscore = mx.symbol.Crop(*[input, crop], offset=offset, name="upscore")
-    softmax = mx.symbol.SoftmaxOutput(data=upscore, multi_output=True, use_ignore=True, ignore_label=255, name="softmax")
-    return softmax
+    label = mx.symbol.Variable(name="softmax_label")
+    softmax = mx.symbol.SoftmaxOutput(data=upscore, label=label, multi_output=True, use_ignore=True, ignore_label=255, name="softmax")
+    #return softmax
+    pred = mx.symbol.argmax(upscore, axis=1)
+    #_label = mx.symbol.reshape(data = label, shape=(-1,800,800))
+    #_label = mx.symbol.expand_dims(_label, axis=1)
+    #intersection = mx.symbol.broadcast_mul(upscore, _label)
+    intersection = pred*label
+    intersection = mx.symbol.sum(intersection, axis=[1,2])
+    #intersection = mx.symbol.sum(upscore*label, axis=[1,2])
+    dice = intersection*2.0/(mx.symbol.sum(pred, axis=[1,2])+mx.symbol.sum(label,axis=[1,2]))
+    dice_loss = mx.symbol.mean(dice)*-1.0
+    dice_loss = mx.symbol.MakeLoss(dice_loss, grad_scale=1.0, name='dice_loss')
+    return mx.symbol.Group([softmax,dice_loss])
 
 def get_fcn32s_symbol(numclass=21, workspace_default=1024):
     data = mx.symbol.Variable(name="data")
