@@ -38,9 +38,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.001
-        run_epochs = 20
-        load_epoch = 10
+        lr = 0.0001
+        run_epochs = 10
+        load_epoch = 63
     else:
         raise Exception("error")
         
@@ -102,8 +102,8 @@ def main():
         optimizer          = 'sgd',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
-        # arg_params         = deeplab_args,
-        # aux_params         = deeplab_auxs,
+        arg_params         = deeplab_args,
+        aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 10),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
@@ -117,10 +117,10 @@ if __name__ == "__main__":
         # network
         network          = 'irnext',
         num_layers       = 50,
-        outfeature       = 1024,
+        outfeature       = 1536,
         bottle_neck      = 1,
-        expansion        = 1.0, 
-        num_group        = 32,
+        expansion        = 0.5, 
+        num_group        = 96,
         dilpat           = '', 
         irv2             = False, 
         deform           = 0, 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     )
     
     
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-50L16X4D4XP',
+    parser.add_argument('--model', default='DeeplabV3-ResNeXt-50L96X4D1OV2XP',
         help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-50L16X4D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
     parser.add_argument('--model-dir', default='./model',
         help='directory to save model.')
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         help='cutoff size.')
     parser.add_argument('--gpus', default='',
         help='gpus for use.')
-    parser.add_argument('--retrain', action='store_true', default=True,
+    parser.add_argument('--retrain', action='store_true', default=False,
         help='true means continue training.')
     args = parser.parse_args()
     logging.info(args)

@@ -459,7 +459,7 @@ class irnext_deeplab_dcn():
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
                 num_group=32, lastout=7, dilpat='', irv2=False, deform=0, conv_workspace=256,
-                taskmode='CLS', seg_stride_mode='', deeplabversion=1, dtype='float32', **kwargs):
+                taskmode='CLS', seg_stride_mode='', deeplabversion=2, dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
         """
@@ -566,7 +566,7 @@ class irnext_deeplab_dcn():
                 exec('score_{ind}_bias = mx.symbol.Variable(\'score_{ind}_bias\', lr_mult=2.0)'.format(ind=i))
                 exec('score_{ind}_weight = mx.symbol.Variable(\'score_{ind}_weight\', lr_mult=1.0)'.format(ind=i))
                 exec('score_{ind} = mx.symbol.Convolution(data=relu_fc6, kernel=(3, 3), pad=(thisatrous, thisatrous),\
-                        dilate=(thisatrous, thisatrous) ,num_filter=self.numclasses, \
+                        dilate=(thisatrous, thisatrous) ,num_filter=self.num_classes, \
                         name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
                         workspace=self.workspace)'.format(ind=i))
                 if i==0:
@@ -582,7 +582,7 @@ class irnext_deeplab_dcn():
         
             croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
             softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
-                                          use_ignore=True, ignore_label=255, name="softmax")
+                                          attr={'lr_mult': '10.0'},use_ignore=True, ignore_label=255, name="softmax")
 
             return softmax
     
