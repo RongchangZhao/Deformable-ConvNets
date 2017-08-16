@@ -9,7 +9,7 @@ import init_fcnxs
 from data import FileIter
 from data import BatchFileIter
 from solver import Solver
-from dice_metric import DiceMetric
+from dice_metric import DiceMetric, AccMetric
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -20,7 +20,7 @@ def main():
     carvn_root = ''
     num_classes = 2
     cutoff = None if args.cutoff==0 else args.cutoff
-    epochs = [74,30,10,5]
+    epochs = [74,2,1,1]
     if not os.path.exists(args.model_dir):
       os.mkdir(args.model_dir)
     model_prefixes = ['VGG_FC_ILSVRC_16_layers', args.model_dir+"/FCN32s_VGG16", args.model_dir+"/FCN16s_VGG16", args.model_dir+"/FCN8s_VGG16"]
@@ -86,12 +86,13 @@ def main():
             'momentum' : 0.99,
             'wd' : 0.0005 }
     _dice = DiceMetric()
-    eval_metrics = [mx.metric.create(_dice)]
+    _acc = AccMetric()
+    eval_metrics = [mx.metric.create(_dice), mx.metric.create(_acc)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
     model.fit(train_dataiter,
         begin_epoch        = 0,
         num_epoch          = run_epochs,
-        eval_data          = val_dataiter,
+        #eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
         optimizer          = 'sgd',

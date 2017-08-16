@@ -141,7 +141,10 @@ class BatchFileIter(DataIter):
         idx = 0
         for line in iter(fin.readline, ''):
           line = line.strip().split('\t')
-          self.imglist[idx] = ( (line[1], line[2]) )
+          patch = None
+          if len(line)>3:
+            patch = (int(line[3]), int(line[4]), int(line[5]), int(line[6]))
+          self.imglist[idx] =  (line[1], line[2], patch) 
           self.seq.append(idx)
           idx+=1
       if self.cut_off_size is not None:
@@ -166,8 +169,8 @@ class BatchFileIter(DataIter):
             raise StopIteration
         idx = self.seq[self.cur]
         self.cur += 1
-        fname, fname_label = self.imglist[idx]
-        return self._read_img(fname, fname_label)
+        fname, fname_label, patch = self.imglist[idx]
+        return self._read_img(fname, fname_label, patch)
 
     def next(self):
         """Returns the next batch of data."""
@@ -223,12 +226,16 @@ class BatchFileIter(DataIter):
             img = fin.read()
         return img
 
-    def _read_img(self, img_name, label_name):
+    def _read_img(self, img_name, label_name, patch):
         img = Image.open(img_name)
         label = Image.open(label_name)
         assert img.size == label.size
         img = np.array(img, dtype=np.float32)  # (h, w, c)
         label = np.array(label)  # (h, w)
+        if patch is not None:
+          img = img[patch[0]:patch[1],patch[2]:patch[3],:]
+          label = label[patch[0]:patch[1],patch[2]:patch[3]]
+        #print(img.shape, label.shape)
         if self.cut_off_size is not None:
             max_hw = max(img.shape[0], img.shape[1])
             min_hw = min(img.shape[0], img.shape[1])
