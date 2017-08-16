@@ -38,7 +38,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.0001
+        lr = 0.001
         run_epochs = 10
         load_epoch = 63
     else:
@@ -61,7 +61,11 @@ def main():
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
         deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
                                      deeplabsym, deeplab_args, deeplab_auxs)
-            
+    else:
+        ctx = mx.cpu()
+        
+        _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(model_prefix, load_epoch)
+        
             
             
     train_dataiter = BatchFileIter(
@@ -104,7 +108,7 @@ def main():
         initializer        = initializer,
         arg_params         = deeplab_args,
         aux_params         = deeplab_auxs,
-        batch_end_callback = mx.callback.Speedometer(args.batch_size, 10),
+        batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
     
