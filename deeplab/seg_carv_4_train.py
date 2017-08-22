@@ -38,9 +38,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.001
-        run_epochs = 10
-        load_epoch = 63
+        lr = 0.0005
+        run_epochs = 30
+        load_epoch = 21
     else:
         raise Exception("error")
         
@@ -93,7 +93,7 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : 0.90,
-            'wd' : 0.0005 }
+            'wd' : 0.0003 }
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         bottle_neck      = 1,
         expansion        = 0.5, 
         num_group        = 96,
-        dilpat           = '', 
+        dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 0, 
         taskmode         = 'SEG',

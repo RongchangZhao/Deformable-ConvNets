@@ -479,7 +479,7 @@ class irnext_deeplab_dcn():
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [6,12,18,24]
+        self.atrouslist = [6, 12, 18]
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -561,6 +561,7 @@ class irnext_deeplab_dcn():
             return softmax
         elif self.deeplabversion > 1:
             atrouslistlen = len(self.atrouslist)
+            atrouslistsymbol = []
             for i in range(atrouslistlen):
                 thisatrous = self.atrouslist[i]
                 exec('score_{ind}_bias = mx.symbol.Variable(\'score_{ind}_bias\', lr_mult=2.0)'.format(ind=i))
@@ -569,10 +570,15 @@ class irnext_deeplab_dcn():
                         dilate=(thisatrous, thisatrous) ,num_filter=self.num_classes, \
                         name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
                         workspace=self.workspace)'.format(ind=i))
+                
+                exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
+                '''
                 if i==0:
                     score = score_0
                 else:
                     exec('score = score + score_{ind}'.format(ind=i))
+                '''
+            score = mx.symbol.Concat(*atrouslistsymbol)
             
 
             upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
