@@ -38,9 +38,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.0005
-        run_epochs = 30
-        load_epoch = 21
+        lr = 0.005
+        run_epochs = 50
+        load_epoch = 0
     else:
         raise Exception("error")
         
@@ -120,11 +120,11 @@ if __name__ == "__main__":
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 50,
-        outfeature       = 1536,
+        num_layers       = 152,
+        outfeature       = 2048,
         bottle_neck      = 1,
-        expansion        = 0.5, 
-        num_group        = 96,
+        expansion        = 4, 
+        num_group        = 1,
         dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 0, 
@@ -144,8 +144,8 @@ if __name__ == "__main__":
     )
     
     
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-50L96X4D1OV2XP',
-        help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-50L16X4D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
+    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP',
+        help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-152L64X1D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
     parser.add_argument('--model-dir', default='./model',
         help='directory to save model.')
     parser.add_argument('--cutoff', type=int, default=800,

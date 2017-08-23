@@ -135,7 +135,7 @@ def main():
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
-    parser.add_argument('--cutoff', type=int, default=959,
+    parser.add_argument('--cutoff', type=int, default=1280,
       help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')
