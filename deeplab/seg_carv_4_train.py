@@ -7,6 +7,7 @@ import logging
 
 import seg_carv_7_init_from_cls
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
+from symbols.unet_dcn_w_hypers import *
 from seg_carv_1_data_loader import FileIter
 from seg_carv_1_data_loader import BatchFileIter
 from seg_carv_2_dicemetric import DiceMetric
@@ -34,11 +35,12 @@ def main():
         cls_model_prefix = '-'.join(['CLS'] + args.model.split('-')[1:])
         
         deeplabnet = irnext_deeplab_dcn(**vars(args))
+        #deeplabnet = UNet_dcn(**vars(args))
         deeplabsym = deeplabnet.get_seg_symbol()
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.005
+        lr = 0.03
         run_epochs = 50
         load_epoch = 0
     else:
@@ -59,14 +61,18 @@ def main():
         ctx = mx.cpu()
         
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
+        
         deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
                                      deeplabsym, deeplab_args, deeplab_auxs)
+        
+        
+        #deeplab_args, deeplab_auxs = None, None
+        
     else:
         ctx = mx.cpu()
         
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(model_prefix, load_epoch)
         
-            
             
     train_dataiter = BatchFileIter(
         path_imglist         = "../../carvana_train.lst",
@@ -92,11 +98,12 @@ def main():
     )
     optimizer_params = {
             'learning_rate': lr,
-            'momentum' : 0.90,
+            'momentum' : 0.9,
             'wd' : 0.0003 }
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
+    
     model.fit(train_dataiter,
         begin_epoch        = 0,
         num_epoch          = run_epochs,
@@ -117,19 +124,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert IRNeXt to Deeplabv3 model.')
     
     
+    # Deeplab-ResNet Structure
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 152,
+        num_layers       = 101,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
         num_group        = 1,
         dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
-        deform           = 0, 
+        deform           = 1, 
+        sqex             = 1,
+        deeplabversion   = 2,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
+        batch_size       = 8,
         # data
         num_classes      = 2,
         #num_examples     = 1281167,
@@ -142,6 +153,29 @@ if __name__ == "__main__":
         #lr_step_epochs   = '30,50,70',
         dtype            = 'float32'
     )
+    '''
+    
+    # UNet Structure
+    parser.set_defaults(
+        # network
+        num_filter       = 8,
+        bottle_neck      = 0,
+        unitbatchnorm    = False,
+        deform           = 0, 
+        sqex             = 0,
+        # data
+        num_classes      = 2,
+        #num_examples     = 1281167,
+        #image_shape      = '3,224,224',
+        #lastout          = 7,
+        #min_random_scale = 1.0 , # if input image has min size k, suggest to use
+                              # 256.0/x, e.g. 0.533 for 480
+        # train
+        #num_epochs       = 80,
+        #lr_step_epochs   = '30,50,70',
+        dtype            = 'float32'
+    )
+    '''
     
     
     parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP',

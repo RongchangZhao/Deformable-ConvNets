@@ -25,6 +25,9 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
     
     deeplab_args = irnext_cls_args.copy()
     deeplab_auxs = irnext_cls_args.copy()
+    
+
+
     for k,v in deeplab_args.items():
         if(v.context != ctx):
             deeplab_args[k] = mx.nd.zeros(v.shape, ctx)
@@ -33,19 +36,31 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
         if(v.context != ctx):
             deeplab_auxs[k] = mx.nd.zeros(v.shape, ctx)
             v.copyto(deeplab_auxs[k])
-            
-    data_shape=(1,3,500,500)
+    
+
+   
+    data_shape=(1,3,1280,1280)
     arg_names = irnext_cls_symbol.list_arguments()
     
     print arg_names
     
+    print "Step"
+
+
     arg_shapes, _, _ = irnext_cls_symbol.infer_shape(data=data_shape)
+        
+    print arg_shapes
+
     rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)
             if x[0] in ['score_weight', 'score_bias', 'score_pool4_weight', 'score_pool4_bias', \
                         'score_pool3_weight', 'score_pool3_bias', 'score_0_weight', 'score_0_bias', \
                         'score_1_weight', 'score_1_bias', 'score_2_weight', 'score_2_bias', \
                         'score_3_weight', 'score_3_bias']])
     deeplab_args.update(rest_params)
+    
+    print "Step"
+
+
     
     deconv_params = dict([(x[0], x[1]) for x in zip(arg_names, arg_shapes)
             if x[0] in ["upsampling_weight"]])
