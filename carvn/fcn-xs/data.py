@@ -127,12 +127,13 @@ class FileIter(DataIter):
 class BatchFileIter(DataIter):
     def __init__(self, path_imglist, batch_size, img_shape = (1280, 1918),
                  rgb_mean = (117, 117, 117),
-                 cut_off_size = None,
+                 cut_off_size = None, random_flip = False,
                  data_name = "data",
                  label_name = "softmax_label"):
       self.mean = np.array(rgb_mean)  # (R, G, B)
       self.batch_size = batch_size
       self.cut_off_size = cut_off_size
+      self.random_flip = random_flip
       self.data_name = data_name
       self.label_name = label_name
       with open(path_imglist) as fin:
@@ -262,6 +263,11 @@ class BatchFileIter(DataIter):
         img = np.swapaxes(img, 1, 2)  # (c, h, w)
         #img = np.expand_dims(img, axis=0)  # (1, c, h, w)
         label = np.array(label)  # (h, w)
+
+        if self.random_flip:
+          for c in img.shape[0]:
+            img[c,:,:] = np.fliplr(img[c,:,:])
+          label = np.fliplr(label)
         #label = np.expand_dims(label, axis=0)  # (1, h, w)
         return (img, label)
 
