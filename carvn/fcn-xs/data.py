@@ -267,7 +267,7 @@ class BatchFileIter(DataIter):
         if self.random_flip:
           _rnd = random.randint(0,1)
           if _rnd==1:
-            for c in img.shape[0]:
+            for c in xrange(img.shape[0]):
               img[c,:,:] = np.fliplr(img[c,:,:])
             label = np.fliplr(label)
         #label = np.expand_dims(label, axis=0)  # (1, h, w)
