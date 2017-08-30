@@ -62,7 +62,7 @@ def get_img(img_path):
     #img = np.expand_dims(img, axis=0)
     return img
 
-
+'''
 def get_mask_out(data):
     global ctx, deeplab, deeplab_args, deeplab_auxs
 
@@ -105,6 +105,79 @@ def get_mask(img_path, cutoff):
             _mask = get_mask_out(_img)
             mask[xstart:xstop,ystart:ystop] = _mask
     return mask
+'''
+
+def get_mask_prob(data):
+    global ctx, deeplab, deeplab_args, deeplab_auxs
+
+    if len(data.shape)==3:
+        data = np.expand_dims(data, axis=0)
+    deeplab_args["data"] = mx.nd.array(data, ctx)
+    data_shape = deeplab_args["data"].shape
+    #print(data_shape)
+    label_shape = (1, data_shape[2]*data_shape[3])
+    deeplab_args["softmax_label"] = mx.nd.empty(label_shape, ctx)
+    exector = deeplab.bind(ctx, deeplab_args ,args_grad=None, grad_req="null", aux_states=deeplab_auxs)
+    exector.forward(is_train=False)
+    output = exector.outputs[0]
+    prob = output.asnumpy()
+    #out_img = np.uint8(np.squeeze(prob.argmax(axis=1)))
+    out_prob = np.squeeze(prob)
+    #print(prob.shape, out_prob.shape)
+    return out_prob
+
+def prob_to_out(prob):
+    out_img = np.uint8(np.squeeze(prob.argmax(axis=0)))
+    return out_img
+
+def get_mask(img_path, cutoff, resize):
+    img = get_img(img_path)
+    if cutoff is None or cutoff<=0:
+        prob = get_mask_prob(img)
+        return prob_to_out(prob)
+    if resize:
+        img = cv2.resize(img, (img.shape[0]/2, img.shape[1]/2))
+
+    mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
+    moves = [2,4] # moves in h,w
+    assert (img.shape[1]-cutoff)%(moves[0]-1)==0
+    assert (img.shape[2]-cutoff)%(moves[1]-1)==0
+    moves = [ (img.shape[1]-cutoff)/(moves[0]-1), (img.shape[2]-cutoff)/(moves[1]-1) ]
+    for h in xrange(0,img.shape[1]-cutoff+1,moves[0]):
+        for w in xrange(0, img.shape[2]-cutoff+1, moves[1]):
+            _img = img[:,h:(h+cutoff),w:(w+cutoff)]
+            #print(h,w)
+            _mask = get_mask_prob(_img)
+            mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
+            
+            # Flip Once
+            for idx in range(_img.shape[0]):
+                _img[c,:,:] = np.fliplr(_img[c,:,:])
+            # Gen
+            _mask = get_mask_prob(_img)
+            # Flip Twice
+            for idx in range(_mask.shape[0]):
+                _mask[c,:,:] = np.fliplr(_mask[c,:,:])
+            mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
+            
+    #for x in xrange(0, img.shape[1], cutoff):
+    #  xstart = x
+    #  xstop = min(xstart+cutoff,img.shape[1])
+    #  xstart = xstop-cutoff
+    #  for y in xrange(0, img.shape[2], cutoff):
+    #    ystart = y
+    #    ystop = min(ystart+cutoff,img.shape[2])
+    #    ystart = ystop-cutoff
+    #    #print(xstart,ystart,xstop,ystop)
+    #    _img = img[:,xstart:xstop,ystart:ystop]
+    #    _mask = get_mask_prob(_img)
+    #    mask[:,xstart:xstop,ystart:ystop] += _mask
+    if resize:
+        mask = cv2.resize(mask, mask.shape[0]*2, mask.shape[1]*2 )
+    
+    return prob_to_out(mask)
+
+
 
 def rle_encode(mask_image):
     pixels = mask_image.flatten()
@@ -129,13 +202,15 @@ def main():
     parser = argparse.ArgumentParser(description='carvn submit')
     parser.add_argument('--model-dir', default='./',
       help='directory to save model.')
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-50L96X4D1OV2XP',
+    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_74L0.03LR161218AT1deform1sqexv2BAK9968',
       help='filename to savemodel.')
-    parser.add_argument('--epoch', type=int, default=17,
+    parser.add_argument('--epoch', type=int, default=6,
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
     parser.add_argument('--cutoff', type=int, default=1024,
+      help='cutoff size.')
+    parser.add_argument('--resize', type=int, default=0,
       help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')
@@ -171,7 +246,7 @@ def main():
         out_img = out_img.replace("jpg", "png")
         img = os.path.join(test_data_dir, img)
         #print(img)
-        mask = get_mask(img, args.cutoff)
+        mask = get_mask(img, args.cutoff, args.resize)
         #print(mask.shape)
         #mask = Image.fromarray(mask)
         #mask.putpalette(pallete)

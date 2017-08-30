@@ -7,6 +7,7 @@ import random
 from mxnet.io import DataIter
 import mxnet.ndarray as nd
 from PIL import Image
+import cv2
 
 class FileIter(DataIter):
     """FileIter object in fcn-xs example. Taking a file list file to get dataiter.
@@ -127,14 +128,16 @@ class FileIter(DataIter):
 class BatchFileIter(DataIter):
     def __init__(self, path_imglist, batch_size, img_shape = (1280, 1918),
                  rgb_mean = (117, 117, 117),
-                 cut_off_size = None,
+                 cut_off_size = None, random_flip = True, resize = True,
                  data_name = "data",
                  label_name = "softmax_label"):
         self.mean = np.array(rgb_mean)  # (R, G, B)
         self.batch_size = batch_size
         self.cut_off_size = cut_off_size
         self.data_name = data_name
+        self.random_flip = random_flip
         self.label_name = label_name
+        self.resize = resize
         with open(path_imglist) as fin:
             self.imglist = {}
             self.seq = []
@@ -147,6 +150,9 @@ class BatchFileIter(DataIter):
             if self.cut_off_size is not None:
                 self.data_shape = (3, cut_off_size, cut_off_size)
                 self.label_shape = (cut_off_size, cut_off_size)
+            elif self.resize:
+                self.data_shape = (3, img_shape[0]/2, img_shape[1]/2)
+                self.label_shape = (img_shape[0]/2, img_shape[1]/2)
             else:
                 self.data_shape = (3, img_shape[0], img_shape[1])
                 self.label_shape = (img_shape[0], img_shape[1])
@@ -229,7 +235,16 @@ class BatchFileIter(DataIter):
         assert img.size == label.size
         img = np.array(img, dtype=np.float32)  # (h, w, c)
         label = np.array(label)  # (h, w)
+        
+        if self.resize:
+            img = cv2.resize(img, (img.shape[0]/2,img.shape[1]/2) )
+            label = cv2.resize(label, (label.shape[0]/2, label.shape[1]/2))
+            
         if self.cut_off_size is not None:
+            
+            assert self.cut_off_size<=img.shape[0]
+            assert self.cut_off_size<=img.shape[1]
+            
             max_hw = max(img.shape[0], img.shape[1])
             min_hw = min(img.shape[0], img.shape[1])
             if min_hw > self.cut_off_size:
@@ -255,6 +270,14 @@ class BatchFileIter(DataIter):
         img = np.swapaxes(img, 1, 2)  # (c, h, w)
         #img = np.expand_dims(img, axis=0)  # (1, c, h, w)
         label = np.array(label)  # (h, w)
+        
+        if self.random_flip:
+            _rnd = random.randint(0,1)
+            if _rnd==1:
+                for c in range(img.shape[0]):
+                    img[c,:,:] = np.fliplr(img[c,:,:])
+                label = np.fliplr(label)
+            
         #label = np.expand_dims(label, axis=0)  # (1, h, w)
         return (img, label)
 
