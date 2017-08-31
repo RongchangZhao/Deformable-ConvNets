@@ -281,7 +281,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
-               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, 
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, block567=0,
            taskmode='CLS',
            seg_stride_list = [1,2,2,1], decoder=False,
            bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
@@ -433,6 +433,9 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         dilation_plan = [1,1,1,1] if dilpat not in dilation_dict else dilation_dict[dilpat]
         
+        if block567 == 1:
+            dilation_plan = dilation_plan + [8,16,32]
+        
         if decoder:
             #conv_basic_out = body
             #imagepyramid = [conv_basic_out]
@@ -440,7 +443,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         for i in range(num_stages):
             
-            current_deform = 0 if i!=(num_stages-1) else deform
+            current_deform = 0 if i<2 else deform
             
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
@@ -466,7 +469,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
 
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0,  conv_workspace=256,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567=0,  conv_workspace=256,
                taskmode='CLS', decoder=False, seg_stride_mode='', dtype='float32', **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
@@ -511,24 +514,33 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         else:
             filter_list = [64, int(outfeature/8) , int(outfeature/4), int(outfeature/2), outfeature ]
             use_bottle_neck = 0
-            
-        num_stages = 4
+        
+        if block567 == 1:
+            filter_list = filter_list + [outfeature,outfeature,outfeature]
+        
+        num_stages = 4 if block567==0 else 7
         if num_layers == 18:
             units = [2, 2, 2, 2]
         #elif num_layers == 34:
         #    units = [3, 4, 6, 3]
+        elif num_layers == 23:
+            units = [2, 2, 2, 1]
         elif num_layers == 26:
             units = [2, 2, 2, 2]
         elif num_layers == 29:
             units = [2, 2, 2, 3]
         elif num_layers == 38:
             units = [3, 3, 3, 3]
+        elif num_layers == 41:
+            units = [3, 3, 4, 3]
         elif num_layers == 50:
             units = [3, 4, 6, 3]
         elif num_layers == 59:
             units = [3, 4, 9, 3]
+        elif num_layers == 62:
+            units = [3, 4, 10, 3]
         elif num_layers == 65:
-            units = [3, 6, 9, 3]
+            units = [3, 5, 10, 3]
         elif num_layers == 74:
             units = [3, 6, 12, 3]
         elif num_layers == 101:
@@ -541,6 +553,9 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             units = [3, 30, 48, 8]
         else:
             raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
+            
+        if block567 == 1:
+            units = units + [3,3,3]
 
     if seg_stride_mode == '4x':
         seg_stride_list = [1,1,1,1]
@@ -550,6 +565,9 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         seg_stride_list = [1,2,2,1]
     else:
         seg_stride_list = [1,2,2,1]
+    
+    if block567 == 1:
+        seg_stride_list = seg_stride_list + [1,1,1]
         
     
     return irnext(data, 
@@ -566,6 +584,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
                   deform      = deform, 
                   sqex        = sqex, 
                   ratt        = ratt,
+                  block567    = block567,
                   taskmode    = taskmode,
                   seg_stride_list = seg_stride_list,
                   decoder     = decoder,
@@ -583,7 +602,9 @@ class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
-                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, conv_workspace=256,
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, block567=0 , 
+                 aspp = 0, 
+                 conv_workspace=256,
                 taskmode='CLS', seg_stride_mode='', deeplabversion=2 , dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
@@ -603,10 +624,11 @@ class irnext_deeplab_dcn():
         self.deform = deform
         self.sqex = sqex
         self.ratt = ratt
+        self.block567 = block567
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [6,12,18]
+        self.atrouslist = [] if aspp==0 else [6,12,18] #6,12,18
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -656,6 +678,7 @@ class irnext_deeplab_dcn():
                             decoder=self.decoder,
                             sqex=self.sqex,
                             ratt=self.ratt,
+                            block567=self.block567,
                             conv_workspace=256,
                             taskmode='SEG',
                             seg_stride_mode=self.seg_stride_mode,
@@ -788,13 +811,13 @@ class irnext_deeplab_dcn():
                 
                 exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
                 
-                '''
+                
                 if i==0:
                     score = score_0
                 else:
                     exec('score = score + score_{ind}'.format(ind=i))
-                '''
-            score = mx.symbol.Concat(*atrouslistsymbol)
+                
+            #score = mx.symbol.Concat(*atrouslistsymbol)
 
             upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                              stride=(upstride, upstride),

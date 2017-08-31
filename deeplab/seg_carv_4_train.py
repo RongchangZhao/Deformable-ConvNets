@@ -41,8 +41,8 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.025
-        run_epochs = 50
+        lr = 0.03
+        run_epochs = 100
         load_epoch = 0
     else:
         raise Exception("error")
@@ -63,8 +63,14 @@ def main():
         
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
         
+        
+        data_shape_dict = {'data': (args.batch_size, 3, args.cutoff, args.cutoff), 
+                           'softmax_label': (args.batch_size, args.cutoff, args.cutoff)}
+
+
+        
         deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
-                                     deeplabsym, deeplab_args, deeplab_auxs)
+                                     deeplabsym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
         
         
         #deeplab_args, deeplab_auxs = None, None
@@ -108,6 +114,7 @@ def main():
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
     
+    
     model.fit(train_dataiter,
         begin_epoch        = 0,
         num_epoch          = run_epochs,
@@ -138,11 +145,13 @@ if __name__ == "__main__":
         bottle_neck      = 1,
         expansion        = 4, 
         num_group        = 1,
-        dilpat           = 'DEEPLAB.PLATEAU', 
+        dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 1, 
         sqex             = 1,
         ratt             = 0,
+        block567         = 0,
+        aspp             = 0,
         deeplabversion   = 2,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
