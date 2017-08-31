@@ -25,7 +25,7 @@ def main():
     carvn_root = ''
     num_classes = 2
     cutoff = None if args.cutoff==0 else args.cutoff
-    resize = True if  args.resize else False
+    resize = True if args.resize else False
     epochs = [74,30,10,5]
     if not os.path.exists(args.model_dir):
         os.mkdir(args.model_dir)
@@ -35,15 +35,16 @@ def main():
         print "arg.model name is : ", args.model
         cls_model_prefix = '-'.join(['CLS'] + args.model.split('-')[1:])
         
-        deeplabnet = irnext_deeplab_dcn(**vars(args))
-        #deeplabnet = UNet_dcn(**vars(args))
+        #deeplabnet = irnext_deeplab_dcn(**vars(args))
+        deeplabnet = UNet_dcn(**vars(args))
         deeplabsym = deeplabnet.get_seg_symbol()
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.025
-        run_epochs = 50
+        lr = 0.0003
+        run_epochs = 100
         load_epoch = 0
+        
     else:
         raise Exception("error")
         
@@ -61,10 +62,10 @@ def main():
     if not args.retrain:
         ctx = mx.cpu()
         
-        _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
+        #_ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(load_prefix, load_epoch)
         
-        deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
-                                     deeplabsym, deeplab_args, deeplab_auxs)
+        #deeplab_args, deeplab_auxs = seg_carv_7_init_from_cls.init_from_irnext_cls(ctx, \
+        #                             deeplabsym, deeplab_args, deeplab_auxs)
         
         
         #deeplab_args, deeplab_auxs = None, None
@@ -101,7 +102,7 @@ def main():
     )
     optimizer_params = {
             'learning_rate': lr,
-            'momentum' : 0.9,
+            #'momentum' : 0.9,
             'wd' : 0.0003
             }
     _dice = DiceMetric()
@@ -114,11 +115,11 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        optimizer          = 'sgd',
+        optimizer          = 'adam',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
-        arg_params         = deeplab_args,
-        aux_params         = deeplab_auxs,
+        #arg_params         = deeplab_args,
+        #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
@@ -129,7 +130,7 @@ if __name__ == "__main__":
     
     
     # Deeplab-ResNet Structure
-    
+    '''
     parser.set_defaults(
         # network
         network          = 'irnext',
@@ -138,7 +139,7 @@ if __name__ == "__main__":
         bottle_neck      = 1,
         expansion        = 4, 
         num_group        = 1,
-        dilpat           = 'DEEPLAB.PLATEAU', 
+        dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 1, 
         sqex             = 1,
@@ -164,7 +165,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 16,
+        num_filter       = 32,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 
@@ -179,17 +180,17 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 16,
+        batch_size        = 32,
         dtype            = 'float32'
     )
-    '''
+    
     
     
     parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP',
         help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-152L64X1D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
     parser.add_argument('--model-dir', default='./model',
         help='directory to save model.')
-    parser.add_argument('--cutoff', type=int, default=1024,
+    parser.add_argument('--cutoff', type=int, default=800,
         help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
         help='cutoff size.')

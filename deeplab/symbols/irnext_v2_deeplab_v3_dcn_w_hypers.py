@@ -29,7 +29,7 @@ import mxnet as mx
 # Todo 1,2,4
 
 def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
-                 num_group=32, dilation=1, irv2 = False, deform=0, sqex=1, bn_mom=0.9, unitbatchnorm=True, workspace=256, memonger=False):
+                 num_group=32, dilation=1, irv2 = False, deform=1, sqex=1, ratt=0, bn_mom=0.9, unitbatchnorm=True, workspace=256, memonger=False):
     
     """
     Return Unit symbol for building ResNeXt/simplified Xception block
@@ -162,19 +162,6 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
         
         conv3 = mx.sym.Convolution(data=act3, num_filter=num_filter, kernel=(1,1), stride=(1,1), pad=(0,0), no_bias=True,workspace=workspace, name=name + '_conv3')
         
-        if sqex == 0:
-            out = conv3
-        else:
-            pool_se = mx.symbol.Pooling(data=conv3, cudnn_off=True, global_pool=True, kernel=(7, 7), pool_type='avg', name=name + '_se_pool')
-            flat = mx.symbol.Flatten(data=pool_se)
-            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=num_filter/16, name=name + '_se_fc1') #, lr_mult=0.25)
-            se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
-            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=num_filter, name=name + '_se_fc2') #, lr_mult=0.25)
-            se_act = mx.sym.Activation(se_fc2, act_type="sigmoid")
-            se_reshape = mx.symbol.Reshape(se_act, shape=(-1, num_filter, 1, 1), name="se_reshape")
-            se_scale = mx.sym.broadcast_mul(conv3, se_reshape)
-            out = se_scale
-
         if dim_match:
             shortcut = data
         else:
@@ -182,7 +169,39 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         if memonger:
             shortcut._set_attr(mirror_stage='True')
-        return  out + shortcut
+        # out =  conv3 + shortcut
+    
+    
+        if sqex == 0:
+            pass
+        else:
+            pool_se = mx.symbol.Pooling(data=conv3, cudnn_off=True, global_pool=True, kernel=(7, 7), pool_type='avg', name=name + '_se_pool')
+            flat = mx.symbol.Flatten(data=pool_se)
+            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=(num_filter/expansion/4), name=name + '_se_fc1') #, lr_mult=0.25)
+            se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
+            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=num_filter, name=name + '_se_fc2') #, lr_mult=0.25)
+            se_act = mx.sym.Activation(se_fc2, act_type="sigmoid")
+            se_reshape = mx.symbol.Reshape(se_act, shape=(-1, num_filter, 1, 1), name="se_reshape")
+            se_scale = mx.sym.broadcast_mul(conv3, se_reshape)
+            out = se_scale
+        
+        if ratt == 0:
+            pass
+        else:
+            ratt1 = mx.symbol.Convolution(data=out, num_filter=num_filter, kernel=(1,1), stride=(1,1), no_bias=True, \
+                                             workspace=workspace, name=name+'_poolra1')
+            ratt2 = mx.symbol.Convolution(data=ratt1, num_filter=1, kernel=(1,1), stride=(1,1), no_bias=True, \
+                                              workspace=workspace, name=name+'_poolra2')
+            ratt = mx.symbol.Activation(ratt2, act_type="sigmoid")
+            ratt_scale = mx.sym.broadcast_mul(out, ratt)
+            out = ratt_scale
+            
+        return out + shortcut
+            
+            
+            
+    
+    
     
     
     elif bottle_neck == 2:
@@ -262,7 +281,8 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
-               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, taskmode='CLS',
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, 
+           taskmode='CLS',
            seg_stride_list = [1,2,2,1], decoder=False,
            bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
     
@@ -332,10 +352,28 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv0", workspace=workspace)
     else:                       # often expected to be 224 such as imagenet
+        
         body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
         body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
+        '''
+        body1 = mx.sym.Convolution(data=data, num_filter=filter_list[0]/2, kernel=(7, 7), stride=(2,2), pad=(3, 3),
+                                  no_bias=True, name="conv07", workspace=workspace)
+        body1 = mx.sym.BatchNorm(data=body1, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn07')
+        body1 = mx.sym.Activation(data=body1, act_type='relu', name='relu07')
+        body2 = mx.sym.Convolution(data=data, num_filter=filter_list[0]/4, kernel=(5, 5), stride=(2,2), pad=(2, 2),
+                                  no_bias=True, name="conv05", workspace=workspace)
+        body2 = mx.sym.BatchNorm(data=body2, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn05')
+        body2 = mx.sym.Activation(data=body2, act_type='relu', name='relu05')
+        
+        body3 = mx.sym.Convolution(data=data, num_filter=filter_list[0]/4, kernel=(3, 3), stride=(2,2), pad=(1, 1),
+                                  no_bias=True, name="conv03", workspace=workspace)
+        body3 = mx.sym.BatchNorm(data=body3, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn03')
+        body3 = mx.sym.Activation(data=body3, act_type='relu', name='relu03')
+        
+        body = mx.sym.Concat(*[body1, body2, body3])
+        '''
         body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
 
         # To avoid mean_rgb, use another BN-Relu
@@ -346,6 +384,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
     dilation_dict = {'DEEPLAB.SHUTTLE':[1,1,2,1],
                     'DEEPLAB.HOURGLASS':[1,2,1,2],
                     'DEEPLAB.EXP':[1,1,2,4],
+                    'DEEPLAB.PLATEAU':[1,1,2,2],
                     'DEEPLAB.REVEXP':[1,4,2,1],
                     'DEEPLAB.LIN':[1,1,2,3],
                     'DEEPLAB.REVLIN':[1,3,2,1],
@@ -365,12 +404,12 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
                              expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
-                             irv2 = irv2, deform = current_deform, sqex = sqex, 
+                             irv2 = irv2, deform = current_deform, sqex = sqex, ratt=ratt, 
                              bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             for j in range(units[i]-1):
                 body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
-                                 dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex, 
+                                 dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex, ratt=ratt,
                                  bn_mom=bn_mom, workspace=workspace, memonger=memonger)
         
         bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
@@ -406,12 +445,12 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
                              expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
-                             irv2 = irv2, deform = current_deform, sqex = sqex , 
+                             irv2 = irv2, deform = current_deform, sqex = sqex , ratt=ratt, 
                              bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             for j in range(units[i]-1):
                 body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
-                                 dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex,
+                                 dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex, ratt =ratt, 
                                  bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             if decoder and i>0:
                 exec('conv_{idx}_out = body'.format(idx=i))
@@ -427,7 +466,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
 
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, conv_workspace=256,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0,  conv_workspace=256,
                taskmode='CLS', decoder=False, seg_stride_mode='', dtype='float32', **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
@@ -480,6 +519,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         #    units = [3, 4, 6, 3]
         elif num_layers == 26:
             units = [2, 2, 2, 2]
+        elif num_layers == 29:
+            units = [2, 2, 2, 3]
         elif num_layers == 38:
             units = [3, 3, 3, 3]
         elif num_layers == 50:
@@ -524,6 +565,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
                   irv2        = irv2,
                   deform      = deform, 
                   sqex        = sqex, 
+                  ratt        = ratt,
                   taskmode    = taskmode,
                   seg_stride_list = seg_stride_list,
                   decoder     = decoder,
@@ -541,7 +583,7 @@ class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
-                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, conv_workspace=256,
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, conv_workspace=256,
                 taskmode='CLS', seg_stride_mode='', deeplabversion=2 , dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
@@ -560,10 +602,11 @@ class irnext_deeplab_dcn():
         self.irv2 = irv2
         self.deform = deform
         self.sqex = sqex
+        self.ratt = ratt
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [12,24,36]
+        self.atrouslist = [6,12,18]
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -584,6 +627,7 @@ class irnext_deeplab_dcn():
                           irv2=self.irv2, 
                           deform=self.deform, 
                           sqex=self.sqex,
+                          ratt=self.ratt,
                           conv_workspace=256,
                           taskmode='CLS', 
                           seg_stride_mode='', dtype='float32', **kwargs)
@@ -611,6 +655,7 @@ class irnext_deeplab_dcn():
                             deform=self.deform,
                             decoder=self.decoder,
                             sqex=self.sqex,
+                            ratt=self.ratt,
                             conv_workspace=256,
                             taskmode='SEG',
                             seg_stride_mode=self.seg_stride_mode,
