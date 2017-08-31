@@ -443,7 +443,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         for i in range(num_stages):
             
-            current_deform = 0 if i<2 else deform
+            current_deform = 0 if i<3 else deform
             
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
