@@ -128,7 +128,7 @@ class FileIter(DataIter):
 class BatchFileIter(DataIter):
     def __init__(self, path_imglist, batch_size, img_shape = (1280, 1918),
                  rgb_mean = (117, 117, 117),
-                 cut_off_size = None, random_flip = True, resize = True,
+                 cut_off_size = None, random_flip = False, resize = True,
                  data_name = "data",
                  label_name = "softmax_label"):
         self.mean = np.array(rgb_mean)  # (R, G, B)

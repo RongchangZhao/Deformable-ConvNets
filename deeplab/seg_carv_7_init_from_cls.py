@@ -39,10 +39,10 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
         if k.startswith('fc6_'):
             if k.endswith('_weight'):
                 print('initializing',k)
-                arg_params[k] = mx.random.normal(0, 0.01, shape=v)
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
             elif k.endswith('_bias'):
                 print('initializing',k)
-                arg_params[k] = mx.nd.zeros(shape=v)
+                deeplab_args[k] = mx.nd.zeros(shape=v)
         if block567:
             if k.startswith('stage'):
                 stage_id = int(k[5])
@@ -59,6 +59,8 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                             irnext_cls_args[k] = mx.nd.random_uniform(shape=v)
                         else:
                             irnext_cls_args[k] = mx.random.normal(0, 0.01, shape=v)
+        if 'se' in k:
+            deeplab_args[k] = mx.nd.zeros(shape=v)
         
         
         

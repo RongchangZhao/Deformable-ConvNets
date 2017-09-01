@@ -173,13 +173,16 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
     
     
         if sqex == 0:
-            pass
+            out = conv3
         else:
             pool_se = mx.symbol.Pooling(data=conv3, cudnn_off=True, global_pool=True, kernel=(7, 7), pool_type='avg', name=name + '_se_pool')
             flat = mx.symbol.Flatten(data=pool_se)
-            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=(num_filter/expansion/4), name=name + '_se_fc1') #, lr_mult=0.25)
-            se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
-            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=num_filter, name=name + '_se_fc2') #, lr_mult=0.25)
+            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=(num_filter/expansion/4), name=name + '_se_fc1',
+                                             attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
+            # se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
+            se_relu = se_fc1
+            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=num_filter, name=name + '_se_fc2',
+                                             attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
             se_act = mx.sym.Activation(se_fc2, act_type="sigmoid")
             se_reshape = mx.symbol.Reshape(se_act, shape=(-1, num_filter, 1, 1), name="se_reshape")
             se_scale = mx.sym.broadcast_mul(conv3, se_reshape)
@@ -628,7 +631,7 @@ class irnext_deeplab_dcn():
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [] if aspp==0 else [6,12,18] #6,12,18
+        self.atrouslist = [] if aspp==0 else [3,6,12,18,24] #6,12,18
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -756,12 +759,26 @@ class irnext_deeplab_dcn():
                     exec('score = score + score_{ind}'.format(ind=i))
                 '''
             score = mx.symbol.Concat(*atrouslistsymbol)
+            '''
+            if self.sqex:
+                score_pool_se = mx.symbol.Pooling(data=score, cudnn_off=True, global_pool=True, \
+                                            kernel=(7, 7), pool_type='avg', name='final_score_se_pool')
+                score_flat = mx.symbol.Flatten(data=score_pool_se)
+                score_se_fc1 = mx.symbol.FullyConnected(data=score_flat, num_hidden=12,\
+                                                  name='score_se_fc1') #, lr_mult=0.25)
+                score_se_relu = mx.sym.Activation(data=score_se_fc1, act_type='relu')
+                score_se_fc2 = mx.symbol.FullyConnected(data=score_se_relu, num_hidden=12, name= 'score_se_fc2') #, lr_mult=0.25)
+                score_se_act = mx.sym.Activation(score_se_fc2, act_type="sigmoid")
+                score_se_reshape = mx.symbol.Reshape(score_se_act, shape=(-1, 12, 1, 1), name="score_se_reshape")
+                score_se_scale = mx.sym.broadcast_mul(score, score_se_reshape)
+                score = score_se_scale
+            '''
             
-
+            
             upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                              stride=(upstride, upstride),
                                              num_group=self.num_classes, no_bias=True, name='upsampling',
-                                             attr={'lr_mult': '0.0'}, workspace=self.workspace)
+                                             attr={'lr_mult': '0.1'}, workspace=self.workspace)
         
             croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
             softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
@@ -812,13 +829,15 @@ class irnext_deeplab_dcn():
                 exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
                 
                 
-                if i==0:
-                    score = score_0
-                else:
-                    exec('score = score + score_{ind}'.format(ind=i))
+                #if i==0:
+                #    score = score_0
+                #else:
+                #    exec('score = score + score_{ind}'.format(ind=i))
                 
-            #score = mx.symbol.Concat(*atrouslistsymbol)
+            score = mx.symbol.Concat(*atrouslistsymbol)
 
+            
+            
             upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                              stride=(upstride, upstride),
                                              num_group=self.num_classes, no_bias=True, name='upsampling',
