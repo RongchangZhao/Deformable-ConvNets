@@ -130,7 +130,7 @@ def prob_to_out(prob):
     out_img = np.uint8(np.squeeze(prob.argmax(axis=0)))
     return out_img
 
-def get_mask(img_path, cutoff, resize):
+def get_mask(img_path, cutoff, resize, flip):
     img = get_img(img_path)
     if cutoff is None or cutoff<=0:
         prob = get_mask_prob(img)
@@ -149,15 +149,16 @@ def get_mask(img_path, cutoff, resize):
             #print(h,w)
             _mask = get_mask_prob(_img)
             mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
-            
+            if not flip:
+                continue
             # Flip Once
             for idx in range(_img.shape[0]):
-                _img[c,:,:] = np.fliplr(_img[c,:,:])
+                _img[idx,:,:] = np.fliplr(_img[idx,:,:])
             # Gen
             _mask = get_mask_prob(_img)
             # Flip Twice
             for idx in range(_mask.shape[0]):
-                _mask[c,:,:] = np.fliplr(_mask[c,:,:])
+                _mask[idx,:,:] = np.fliplr(_mask[idx,:,:])
             mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
             
     #for x in xrange(0, img.shape[1], cutoff):
@@ -212,6 +213,8 @@ def main():
       help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
       help='cutoff size.')
+    parser.add_argument('--flip', type=int, default=0,
+      help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')
     args = parser.parse_args()
@@ -246,7 +249,7 @@ def main():
         out_img = out_img.replace("jpg", "png")
         img = os.path.join(test_data_dir, img)
         #print(img)
-        mask = get_mask(img, args.cutoff, args.resize)
+        mask = get_mask(img, args.cutoff, args.resize, args.flip)
         #print(mask.shape)
         #mask = Image.fromarray(mask)
         #mask.putpalette(pallete)

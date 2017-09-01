@@ -41,9 +41,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.008
+        lr = 0.006
         run_epochs = 100
-        load_epoch = 17
+        load_epoch = 36
     else:
         raise Exception("error")
         
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 1, 
-        sqex             = 0,
+        sqex             = 1,
         ratt             = 0,
         block567         = 0,
         aspp             = 1,
