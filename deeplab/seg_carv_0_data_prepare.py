@@ -48,7 +48,8 @@ for i in xrange(len(id2images)):
         mask_image = os.path.join(DATA_ROOT, 'train_masks', "%s_%02d_mask.gif" % (image_id, idx))
         if i < val_count:
             val_f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
-        train_f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
+        else:
+            train_f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
 
 train_f.close()
 val_f.close()

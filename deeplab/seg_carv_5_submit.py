@@ -203,9 +203,9 @@ def main():
     parser = argparse.ArgumentParser(description='carvn submit')
     parser.add_argument('--model-dir', default='./',
       help='directory to save model.')
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_74L0.03LR161218AT1deform1sqexv2BAK9968',
+    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_99829977',
       help='filename to savemodel.')
-    parser.add_argument('--epoch', type=int, default=6,
+    parser.add_argument('--epoch', type=int, default=2,
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
@@ -225,7 +225,7 @@ def main():
     deeplab, deeplab_args, deeplab_auxs = mx.model.load_checkpoint(model_prefix, args.epoch)
     deeplab_args, deeplab_auxs = ch_dev(deeplab_args, deeplab_auxs, ctx)
     
-    test_data_dir = os.path.join(DATA_ROOT, 'test')
+    test_data_dir = os.path.join(DATA_ROOT, 'test_hq')
     suffix = '_'.join(args.parts.split(','))
     parts = {}
     for p in args.parts.split(','):
