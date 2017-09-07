@@ -521,7 +521,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         if block567 == 1:
             filter_list = filter_list + [outfeature,outfeature,outfeature]
         
-        num_stages = 4 if block567==0 else 7
+        num_stages = 4 if block567==0 else 6
         if num_layers == 18:
             units = [2, 2, 2, 2]
         #elif num_layers == 34:
@@ -558,7 +558,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
             
         if block567 == 1:
-            units = units + [3,3,3]
+            units = units + [3,3]
 
     if seg_stride_mode == '4x':
         seg_stride_list = [1,1,1,1]
