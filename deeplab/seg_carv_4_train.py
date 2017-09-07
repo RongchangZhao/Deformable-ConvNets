@@ -41,9 +41,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.006
+        lr = 0.001
         run_epochs = 100
-        load_epoch = 47
+        load_epoch = 18
     else:
         raise Exception("error")
         

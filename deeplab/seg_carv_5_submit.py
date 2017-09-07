@@ -159,6 +159,7 @@ def get_mask(img_path, cutoff, resize, flip):
             # Flip Twice
             for idx in range(_mask.shape[0]):
                 _mask[idx,:,:] = np.fliplr(_mask[idx,:,:])
+                _img[idx,:,:] = np.fliplr(_img[idx,:,:])
             mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
             
     #for x in xrange(0, img.shape[1], cutoff):
