@@ -159,6 +159,9 @@ def get_mask(img_path, cutoff, resize, flip):
             # Flip Twice
             for idx in range(_mask.shape[0]):
                 _mask[idx,:,:] = np.fliplr(_mask[idx,:,:])
+                #_img[idx,:,:] = np.fliplr(_img[idx,:,:])
+            # Shared Memory Recovery
+            for idx in range(_img.shape[0]):
                 _img[idx,:,:] = np.fliplr(_img[idx,:,:])
             mask[:,h:(h+cutoff),w:(w+cutoff)] += _mask
             
@@ -204,9 +207,9 @@ def main():
     parser = argparse.ArgumentParser(description='carvn submit')
     parser.add_argument('--model-dir', default='./',
       help='directory to save model.')
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_99829977',
+    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_997265',
       help='filename to savemodel.')
-    parser.add_argument('--epoch', type=int, default=2,
+    parser.add_argument('--epoch', type=int, default=18,
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
@@ -214,7 +217,7 @@ def main():
       help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
       help='cutoff size.')
-    parser.add_argument('--flip', type=int, default=0,
+    parser.add_argument('--flip', type=int, default=1,
       help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')
