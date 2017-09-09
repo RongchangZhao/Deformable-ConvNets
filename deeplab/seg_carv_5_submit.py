@@ -217,7 +217,7 @@ def main():
       help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
       help='cutoff size.')
-    parser.add_argument('--flip', type=int, default=1,
+    parser.add_argument('--flip', type=int, default=0,
       help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')

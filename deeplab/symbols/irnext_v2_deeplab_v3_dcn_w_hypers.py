@@ -606,7 +606,7 @@ class irnext_deeplab_dcn():
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
                 num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, block567=0 , 
-                 aspp = 0, 
+                 aspp = 0, usemax =0,
                  conv_workspace=256,
                 taskmode='CLS', seg_stride_mode='', deeplabversion=2 , dtype='float32', **kwargs):
         """
@@ -628,6 +628,7 @@ class irnext_deeplab_dcn():
         self.sqex = sqex
         self.ratt = ratt
         self.block567 = block567
+        self.usemax = usemax
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
@@ -750,7 +751,13 @@ class irnext_deeplab_dcn():
                         name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
                         workspace=self.workspace)'.format(ind=i))
                 
-                exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
+                if self.usemax:
+                    if i==0:
+                        score = score_0
+                    else:
+                        exec('score = mx.symbol.broadcast_maximum(score,score_{ind})'.format(ind=i))
+                else:
+                    exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
                 
                 '''
                 if i==0:
@@ -758,7 +765,10 @@ class irnext_deeplab_dcn():
                 else:
                     exec('score = score + score_{ind}'.format(ind=i))
                 '''
-            score = mx.symbol.Concat(*atrouslistsymbol)
+            if self.usemax:
+                pass
+            else:
+                score = mx.symbol.Concat(*atrouslistsymbol)
             '''
             if self.sqex:
                 score_pool_se = mx.symbol.Pooling(data=score, cudnn_off=True, global_pool=True, \
@@ -825,16 +835,23 @@ class irnext_deeplab_dcn():
                         dilate=(thisatrous, thisatrous) ,num_filter=self.num_classes, \
                         name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
                         workspace=self.workspace)'.format(ind=i))
+                      
                 
-                exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
-                
-                
+                if self.usemax:
+                    if i==0:
+                        score = score_0
+                    else:
+                        exec('score = mx.symbol.broadcast_maximum(score,score_{ind})'.format(ind=i))
+                else:
+                    exec('atrouslistsymbol.append(score_{ind})'.format(ind=i))
                 #if i==0:
                 #    score = score_0
                 #else:
                 #    exec('score = score + score_{ind}'.format(ind=i))
-                
-            score = mx.symbol.Concat(*atrouslistsymbol)
+            if self.usemax:
+                pass
+            else:
+                score = mx.symbol.Concat(*atrouslistsymbol)
 
             
             
