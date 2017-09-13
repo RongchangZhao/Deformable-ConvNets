@@ -41,9 +41,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.006
+        lr = 0.03
         run_epochs = 100
-        load_epoch = 47
+        load_epoch = 0
     else:
         raise Exception("error")
         
@@ -108,7 +108,7 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : 0.9,
-            'wd' : 0.00000
+            'wd' : 0.0001
             }
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
@@ -153,6 +153,7 @@ if __name__ == "__main__":
         block567         = 0,
         aspp             = 1,
         deeplabversion   = 2,
+        usemax           = 1,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
         batch_size       = 8,
