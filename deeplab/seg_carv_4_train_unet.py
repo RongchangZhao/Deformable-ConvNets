@@ -41,7 +41,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.0003
+        lr = 0.001
         run_epochs = 100
         load_epoch = 0
         
@@ -100,11 +100,22 @@ def main():
         symbol        = deeplabsym,
         #label_names   = ['softmax_label', 'softmax2_label']
     )
+    # ADAM optimizer_params
+    '''
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
             'wd' : 0.0003
             }
+    '''
+    # RMSProp optimizer_params
+    optimizer_params = {
+            'learning_rate': lr,
+            #'momentum' : 0.9,
+            'wd' : 0.001
+            }
+    
+    
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -115,7 +126,8 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        optimizer          = 'adam',
+        #optimizer          = 'adam',
+        optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
         #arg_params         = deeplab_args,
@@ -165,7 +177,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 44,
+        num_filter       = 32,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 

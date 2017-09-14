@@ -632,7 +632,7 @@ class irnext_deeplab_dcn():
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [] if aspp==0 else [3,6,12,18,24] #6,12,18
+        self.atrouslist = [] if aspp==0 else [2,3,6,12,18,24] #6,12,18
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         

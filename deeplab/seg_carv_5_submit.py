@@ -139,11 +139,12 @@ def get_mask(img_path, cutoff, resize, flip):
         img = cv2.resize(img, (img.shape[0]/2, img.shape[1]/2))
 
     mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
-    moves = [2,4] # moves in h,w
+    moves = [2,3] # moves in h,w
+    print img.shape[1],img.shape[2],moves[0],moves[1]
     assert (img.shape[1]-cutoff)%(moves[0]-1)==0
     assert (img.shape[2]-cutoff)%(moves[1]-1)==0
     moves = [ (img.shape[1]-cutoff)/(moves[0]-1), (img.shape[2]-cutoff)/(moves[1]-1) ]
-    for h in xrange(0,img.shape[1]-cutoff+1,moves[0]):
+    for h in xrange(0,img.shape[1]-cutoff+1,max(moves[0],1)):
         for w in xrange(0, img.shape[2]-cutoff+1, moves[1]):
             _img = img[:,h:(h+cutoff),w:(w+cutoff)]
             #print(h,w)
@@ -213,11 +214,11 @@ def main():
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
-    parser.add_argument('--cutoff', type=int, default=1024,
+    parser.add_argument('--cutoff', type=int, default=1280,
       help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
       help='cutoff size.')
-    parser.add_argument('--flip', type=int, default=0,
+    parser.add_argument('--flip', type=int, default=1,
       help='cutoff size.')
     parser.add_argument('--parts', default='',
       help='test parts.')

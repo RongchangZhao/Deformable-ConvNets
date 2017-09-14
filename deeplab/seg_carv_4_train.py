@@ -108,7 +108,7 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : 0.9,
-            'wd' : 0.0001
+            'wd' : 0.00005
             }
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 74,
+        num_layers       = 38,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         block567         = 0,
         aspp             = 1,
         deeplabversion   = 2,
-        usemax           = 1,
+        usemax           = 0,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
         batch_size       = 8,
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-152L64X1D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
     parser.add_argument('--model-dir', default='./model',
         help='directory to save model.')
-    parser.add_argument('--cutoff', type=int, default=1024,
+    parser.add_argument('--cutoff', type=int, default=1152,
         help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
         help='cutoff size.')
