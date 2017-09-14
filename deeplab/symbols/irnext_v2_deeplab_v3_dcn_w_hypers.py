@@ -360,9 +360,12 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
             body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
         elif taskmode=='SEG':
+            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
+                                  no_bias=True, name="conv0", workspace=workspace)
+            '''
             body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(2,2), pad=(1, 1),
                                   no_bias=True, name="conv03", workspace=workspace)
-        
+            '''
         
         body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
