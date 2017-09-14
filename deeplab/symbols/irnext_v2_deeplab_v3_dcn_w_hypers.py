@@ -323,7 +323,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         Use DCN
     taskmode: str
         'CLS': Classification
-        'Seg': Segmentation
+        'SEG': Segmentation
     dataset : str
         Dataset type, only cifar10 and imagenet supports
     workspace : int
@@ -356,8 +356,14 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
                                   no_bias=True, name="conv0", workspace=workspace)
     else:                       # often expected to be 224 such as imagenet
         
-        body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
+        if taskmode=='CLS':
+            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
+        elif taskmode=='SEG':
+            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(2,2), pad=(1, 1),
+                                  no_bias=True, name="conv03", workspace=workspace)
+        
+        
         body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
         '''
@@ -466,9 +472,9 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
         
         if decoder:
-            return imagepyramid + [body]
+            return imagepyramid + [relu1]
         else:
-            return body
+            return relu1
         
 
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
@@ -544,6 +550,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             units = [3, 4, 10, 3]
         elif num_layers == 65:
             units = [3, 5, 10, 3]
+        elif num_layers == 71:
+            units = [3, 5, 12, 3]
         elif num_layers == 74:
             units = [3, 6, 12, 3]
         elif num_layers == 101:
@@ -766,7 +774,8 @@ class irnext_deeplab_dcn():
                     exec('score = score + score_{ind}'.format(ind=i))
                 '''
             if self.usemax:
-                pass
+                score = mx.sym.BatchNorm(data=score, fix_gamma=False, momentum=0.9, eps=2e-5, name='maxbn')
+                score = mx.sym.Activation(data=score, act_type='relu')
             else:
                 score = mx.symbol.Concat(*atrouslistsymbol)
             '''
@@ -849,7 +858,7 @@ class irnext_deeplab_dcn():
                 #else:
                 #    exec('score = score + score_{ind}'.format(ind=i))
             if self.usemax:
-                pass
+                score = mx.sym.BatchNorm(data=score, fix_gamma=False, momentum=0.9, eps=2e-5, name='maxbn')
             else:
                 score = mx.symbol.Concat(*atrouslistsymbol)
 

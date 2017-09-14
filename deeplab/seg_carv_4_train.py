@@ -140,7 +140,7 @@ if __name__ == "__main__":
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 38,
+        num_layers       = 71,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         block567         = 0,
         aspp             = 1,
         deeplabversion   = 2,
-        usemax           = 0,
+        usemax           = 1,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
         batch_size       = 8,
