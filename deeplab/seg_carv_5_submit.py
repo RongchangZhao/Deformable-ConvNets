@@ -183,7 +183,45 @@ def get_mask(img_path, cutoff, resize, flip):
     
     return prob_to_out(mask)
 
+def do_flip(data):
+  for i in xrange(data.shape[0]):
+    data[i,:,:] = np.fliplr(data[i,:,:])
 
+def get_mask_step(img_path, cutoff, step, flip):
+    img = get_img(img_path)
+    if cutoff is None or cutoff<=0:
+        prob = get_mask_prob(img)
+        return prob_to_out(prob)
+    if resize:
+        img = cv2.resize(img, (img.shape[0]/2, img.shape[1]/2))
+
+    mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
+
+    for x in xrange(0, img.shape[1],step):
+      xstart = x
+      xstop = min(xstart+cutoff[0],img.shape[1])
+      xstart = xstop-cutoff[0]
+      for y in xrange(0, img.shape[2], step):
+        ystart = y
+        ystop = min(ystart+cutoff[1],img.shape[2])
+        ystart = ystop-cutoff[1]
+        #print(xstart,ystart,xstop,ystop)
+        _img = img[:,xstart:xstop,ystart:ystop]
+        _mask = get_mask_prob(_img)
+        mask[:,xstart:xstop,ystart:ystop] += _mask
+        if not flip:
+          continue
+        do_flip(_img)
+        _mask = get_mask_prob(_img)
+        do_flip(_mask)
+        mask[:,xstart:xstop,ystart:ystop] += _mask
+        do_flip(_img)
+        if ystop>=img.shape[2]:
+          break
+      if xstop>=img.shape[1]:
+        break
+    
+    return prob_to_out(mask)
 
 def rle_encode(mask_image):
     pixels = mask_image.flatten()
@@ -216,10 +254,12 @@ def main():
       help='gpu for use.')
     parser.add_argument('--cutoff', type=int, default=1280,
       help='cutoff size.')
+    parser.add_argument('--step', type=int, default=256,
+      help='step size.')
     parser.add_argument('--resize', type=int, default=0,
-      help='cutoff size.')
+      help='resize size.')
     parser.add_argument('--flip', type=int, default=1,
-      help='cutoff size.')
+      help='if flip.')
     parser.add_argument('--parts', default='',
       help='test parts.')
     args = parser.parse_args()
@@ -254,7 +294,8 @@ def main():
         out_img = out_img.replace("jpg", "png")
         img = os.path.join(test_data_dir, img)
         #print(img)
-        mask = get_mask(img, args.cutoff, args.resize, args.flip)
+        #mask = get_mask(img, args.cutoff, args.resize, args.flip)
+        mask = get_mask_step(img, args.cutoff, args.step, args.flip)
         #print(mask.shape)
         #mask = Image.fromarray(mask)
         #mask.putpalette(pallete)
