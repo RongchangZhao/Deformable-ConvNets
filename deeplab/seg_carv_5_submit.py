@@ -197,6 +197,7 @@ def get_mask_step(img_path, cutoff, step, flip):
 
     mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
 
+    cutoff = [cutoff, cutoff]
     for x in xrange(0, img.shape[1],step):
       xstart = x
       xstop = min(xstart+cutoff[0],img.shape[1])
