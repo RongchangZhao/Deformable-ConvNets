@@ -284,7 +284,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
-               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, block567=0,
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, block567='',
            taskmode='CLS',
            seg_stride_list = [1,2,2,1], decoder=False,
            bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
@@ -356,16 +356,11 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
                                   no_bias=True, name="conv0", workspace=workspace)
     else:                       # often expected to be 224 such as imagenet
         
-        if taskmode=='CLS':
-            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
+       
+        body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
-        elif taskmode=='SEG':
-            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(7, 7), stride=(2,2), pad=(3, 3),
-                                  no_bias=True, name="conv0", workspace=workspace)
-            '''
-            body = mx.sym.Convolution(data=data, num_filter=filter_list[0], kernel=(3, 3), stride=(2,2), pad=(1, 1),
-                                  no_bias=True, name="conv03", workspace=workspace)
-            '''
+        
+
         
         body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
@@ -394,6 +389,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
     # num_group=32, dilation=1, irv2 = False, deform=0, 
     
     dilation_dict = {'DEEPLAB.SHUTTLE':[1,1,2,1],
+                    'DEEPLAB.TAIL':[1,1,1,2],
                     'DEEPLAB.HOURGLASS':[1,2,1,2],
                     'DEEPLAB.EXP':[1,1,2,4],
                     'DEEPLAB.PLATEAU':[1,1,2,2],
@@ -445,7 +441,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         dilation_plan = [1,1,1,1] if dilpat not in dilation_dict else dilation_dict[dilpat]
         
-        if block567 == 1:
+        if block567 != '' :
             dilation_plan = dilation_plan + [8,16,32]
         
         if decoder:
@@ -475,13 +471,13 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
         
         if decoder:
-            return imagepyramid + [relu1]
+            return imagepyramid + [body]
         else:
-            return relu1
+            return body
         
 
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567=0,  conv_workspace=256,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567='',  conv_workspace=256,
                taskmode='CLS', decoder=False, seg_stride_mode='', dtype='float32', **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
@@ -527,10 +523,10 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             filter_list = [64, int(outfeature/8) , int(outfeature/4), int(outfeature/2), outfeature ]
             use_bottle_neck = 0
         
-        if block567 == 1:
+        if block567 != '' :
             filter_list = filter_list + [outfeature,outfeature,outfeature]
         
-        num_stages = 4 if block567==0 else 6
+        num_stages = 4 if block567=='' else 4+len(block567.split(','))
         if num_layers == 18:
             units = [2, 2, 2, 2]
         #elif num_layers == 34:
@@ -568,8 +564,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
         else:
             raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
             
-        if block567 == 1:
-            units = units + [3,3]
+        if block567 != '' :
+            units = units + block567.split(',')
 
     if seg_stride_mode == '4x':
         seg_stride_list = [1,1,1,1]
@@ -580,7 +576,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
     else:
         seg_stride_list = [1,2,2,1]
     
-    if block567 == 1:
+    if block567 != '':
         seg_stride_list = seg_stride_list + [1,1,1]
         
     
@@ -616,7 +612,7 @@ class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
-                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, block567=0 , 
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, block567='' , 
                  aspp = 0, usemax =0,
                  conv_workspace=256,
                 taskmode='CLS', seg_stride_mode='', deeplabversion=2 , dtype='float32', **kwargs):
@@ -643,7 +639,7 @@ class irnext_deeplab_dcn():
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
-        self.atrouslist = [] if aspp==0 else [2,3,6,12,18,24] #6,12,18
+        self.atrouslist = [] if aspp==0 else [3,6,12,18,24] #6,12,18
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -777,8 +773,9 @@ class irnext_deeplab_dcn():
                     exec('score = score + score_{ind}'.format(ind=i))
                 '''
             if self.usemax:
-                score = mx.sym.BatchNorm(data=score, fix_gamma=False, momentum=0.9, eps=2e-5, name='maxbn')
-                score = mx.sym.Activation(data=score, act_type='relu')
+                pass
+                #score = mx.sym.BatchNorm(data=score, fix_gamma=False, momentum=0.9, eps=2e-5, name='maxbn')
+                #score = mx.sym.Activation(data=score, act_type='relu')
             else:
                 score = mx.symbol.Concat(*atrouslistsymbol)
             '''

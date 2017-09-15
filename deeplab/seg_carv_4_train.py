@@ -41,7 +41,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.03
+        lr = 0.015
         run_epochs = 100
         load_epoch = 0
     else:
@@ -140,20 +140,20 @@ if __name__ == "__main__":
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 71,
+        num_layers       = 74,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
         num_group        = 1,
-        dilpat           = 'DEEPLAB.EXP', 
+        dilpat           = 'DEEPLAB.PLATEAU', 
         irv2             = False, 
         deform           = 1, 
         sqex             = 1,
         ratt             = 0,
-        block567         = 0,
+        block567         = '1,1,1',
         aspp             = 1,
         deeplabversion   = 2,
-        usemax           = 1,
+        usemax           = 0,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
         batch_size       = 8,
