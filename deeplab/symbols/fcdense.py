@@ -280,7 +280,7 @@ class FC_Dense():
         # Fix
         upstride = 8
         # Fix
-        atrouslist =  [1,2,3,6,12,18,24]
+        atrouslist =  [2,3,6,12,18,24]
         atrouslistlen = len(atrouslist)
         
         # V3
