@@ -42,7 +42,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.03
+        lr = 0.001
         run_epochs = 100
         load_epoch = 0
         
@@ -121,7 +121,7 @@ def main():
     
     optimizer_params = {
             'learning_rate': lr,
-            'momentum' : 0.9,
+            #'momentum' : 0.9,
             'wd' : 0.0003
             }
     
@@ -135,9 +135,9 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        optimizer          = 'sgd',
+        #optimizer          = 'sgd',
         #optimizer          = 'adam',
-        #optimizer          = 'rmsprop',
+        optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
         #arg_params         = deeplab_args,
@@ -213,9 +213,9 @@ if __name__ == "__main__":
     
     parser.set_defaults(
         # network
-        units            = [3,6,12,8],
+        units            = [6,12,24,16],
         num_stage        = 4,
-        growth_rate      = 12,
+        growth_rate      = 24,
         usemax           = 0,
         
         # data
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 16,
+        batch_size        = 3,
         dtype            = 'float32'
     )
     

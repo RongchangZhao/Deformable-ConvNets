@@ -120,7 +120,7 @@ def TransitionBlock(num_stage, data, num_filter, stride, name, nopool=False, dro
         return mx.symbol.Pooling(conv1, global_pool=False, kernel=(2,2), stride=(2,2), pool_type='avg', name=name + '_pool%d' % (num_stage+1))
 
 
-def DenseNet(units, num_stage, growth_rate, num_class, data_type, reduction=0.5, drop_out=0., bottle_neck=True, bn_mom=0.9, taskmode='CLS', workspace=512):
+def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, reduction=0.5, drop_out=0., bottle_neck=True, bn_mom=0.9, taskmode='CLS', workspace=512):
     
     """Return DenseNet symbol of imagenet
     Parameters
@@ -146,7 +146,7 @@ def DenseNet(units, num_stage, growth_rate, num_class, data_type, reduction=0.5,
     assert(num_unit == num_stage)
     init_channels = 2 * growth_rate
     n_channels = init_channels
-    data = mx.sym.Variable(name='data')
+    #data = mx.sym.Variable(name='data')
     data = mx.sym.BatchNorm(data=data, fix_gamma=True, eps=2e-5, momentum=bn_mom, name='bn_data')
     if data_type == 'imagenet':
         
@@ -241,7 +241,8 @@ class FC_Dense():
         
         data = mx.symbol.Variable(name="data")
         # units, num_stage, growth_rate, num_class, data_type, reduction=0.5, drop_out=0., bottle_neck=True, bn_mom=0.9, workspace=512
-        return DenseNet(  self.units,
+        return DenseNet(  data,
+		          self.units,
                           self.num_stage,
                           self.growth_rate,
                           self.num_classes,
@@ -259,7 +260,8 @@ class FC_Dense():
         seg_cls_gt = mx.symbol.Variable(name="softmax_label")
         
         
-        conv_feat = DenseNet(  self.units,
+        conv_feat = DenseNet( data,  
+ 	     	          self.units,
                           self.num_stage,
                           self.growth_rate,
                           self.num_classes,
@@ -273,8 +275,8 @@ class FC_Dense():
         
         fc6_bias = mx.symbol.Variable('fc6_bias', lr_mult=2.0)
         fc6_weight = mx.symbol.Variable('fc6_weight', lr_mult=1.0)
-        fc6 = mx.symbol.Convolution(data=conv_feat, kernel=(1, 1), pad=(0, 0), num_filter=self.outfeature, name="fc6",
-                                    bias=fc6_bias, weight=fc6_weight, workspace=self.workspace)
+        fc6 = mx.symbol.Convolution(data=conv_feat, kernel=(1, 1), pad=(0, 0), num_filter=512, name="fc6",
+                                    bias=fc6_bias, weight=fc6_weight, workspace=self.conv_workspace)
         relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
         
         # Fix
@@ -289,18 +291,18 @@ class FC_Dense():
         score_basic = mx.symbol.Convolution(data=relu_fc6, kernel=(1, 1),\
                     num_filter=self.num_classes, \
                     name="score_basic",bias=score_basic_bias, weight=score_basic_weight, \
-                    workspace=self.workspace)
+                    workspace=self.conv_workspace)
         
         atrouslistsymbol = [score_basic]
         
         for i in range(atrouslistlen):
-            thisatrous = self.atrouslist[i]
+            thisatrous = atrouslist[i]
             exec('score_{ind}_bias = mx.symbol.Variable(\'score_{ind}_bias\', lr_mult=2.0)'.format(ind=i))
             exec('score_{ind}_weight = mx.symbol.Variable(\'score_{ind}_weight\', lr_mult=1.0)'.format(ind=i))
             exec('score_{ind} = mx.symbol.Convolution(data=relu_fc6, kernel=(3, 3), pad=(thisatrous, thisatrous),\
                     dilate=(thisatrous, thisatrous) ,num_filter=self.num_classes, \
                     name="score_{ind}",bias=score_{ind}_bias, weight=score_{ind}_weight, \
-                    workspace=self.workspace)'.format(ind=i))
+                    workspace=self.conv_workspace)'.format(ind=i))
             
             if self.usemax:
                 if i==0:
@@ -340,7 +342,7 @@ class FC_Dense():
         upsampling = mx.symbol.Deconvolution(data=score, num_filter=self.num_classes, kernel=(upstride*2, upstride*2), 
                                          stride=(upstride, upstride),
                                          num_group=self.num_classes, no_bias=True, name='upsampling',
-                                         attr={'lr_mult': '0.1'}, workspace=self.workspace)
+                                         attr={'lr_mult': '0.1'}, workspace=self.conv_workspace)
         
         croped_score = mx.symbol.Crop(*[upsampling, data], offset=(upstride/2, upstride/2), name='croped_score')
         softmax = mx.symbol.SoftmaxOutput(data=croped_score, label=seg_cls_gt, normalization='valid', multi_output=True,
