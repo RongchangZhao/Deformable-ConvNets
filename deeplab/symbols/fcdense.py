@@ -249,7 +249,7 @@ class FC_Dense():
                           reduction = self.reduction,
                           drop_out = self.drop_out,
                           bottle_neck = self.bottle_neck,
-                          conv_workspace=self.conv_workspace,
+                          workspace=self.conv_workspace,
                           taskmode='CLS',
                           **kwargs)
         
@@ -267,7 +267,7 @@ class FC_Dense():
                           reduction = self.reduction,
                           drop_out = self.drop_out,
                           bottle_neck = self.bottle_neck,
-                          conv_workspace=self.conv_workspace,
+                          workspace=self.conv_workspace,
                           taskmode='SEG', 
                           **kwargs)
         
