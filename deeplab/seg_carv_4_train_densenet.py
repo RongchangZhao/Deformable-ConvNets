@@ -135,7 +135,7 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        optimizer          = 'sgd' 
+        optimizer          = 'sgd',
         #optimizer          = 'adam',
         #optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
