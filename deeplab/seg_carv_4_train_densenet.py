@@ -213,7 +213,7 @@ if __name__ == "__main__":
     
     parser.set_defaults(
         # network
-        units            = 12,
+        units            = [3,6,12,8],
         num_stage        = 4,
         growth_rate      = 12,
         usemax           = 0,
