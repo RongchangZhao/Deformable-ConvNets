@@ -143,7 +143,7 @@ def main():
         #arg_params         = deeplab_args,
         #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
-        epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
+        epoch_end_callback = [mx.callback.do_checkpoint(model_prefix), mx.lr_scheduler.FactorScheduler(2,0.95)] ,
         allow_missing      = True)
     
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         # network
         units            = [6,12,24,16],
         num_stage        = 4,
-        growth_rate      = 24,
+        growth_rate      = 12,
         usemax           = 0,
         
         # data
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 3,
+        batch_size        = 6,
         dtype            = 'float32'
     )
     

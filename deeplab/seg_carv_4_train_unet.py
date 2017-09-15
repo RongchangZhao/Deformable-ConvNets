@@ -116,6 +116,7 @@ def main():
             }
     
     
+    
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -133,7 +134,7 @@ def main():
         #arg_params         = deeplab_args,
         #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
-        epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
+        epoch_end_callback = [mx.callback.do_checkpoint(model_prefix),mx.lr_scheduler.FactorScheduler(2,0.94)],
         allow_missing      = True)
     
 
