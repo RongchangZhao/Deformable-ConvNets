@@ -115,7 +115,7 @@ def main():
             'learning_rate': lr,
             #'momentum' : 0.9,
             'wd' : 0.001,
-            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(3,0.94)
+            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(int(2*4800/args.batch_size),0.94)
             }
     '''
     # SGD  optimizer_params, use 'sgd'
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 6,
+        batch_size        = 16,
         dtype            = 'float32'
     )
     
