@@ -565,7 +565,7 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             raise ValueError("no experiments done on num_layers {}, you can do it yourself".format(num_layers))
             
         if block567 != '' :
-            units = units + block567.split(',')
+            units = units + [int(i) for i in block567.split(',')]
 
     if seg_stride_mode == '4x':
         seg_stride_list = [1,1,1,1]

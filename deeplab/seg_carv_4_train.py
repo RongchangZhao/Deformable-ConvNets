@@ -41,9 +41,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.015
+        lr = 0.003
         run_epochs = 100
-        load_epoch = 0
+        load_epoch = 64
     else:
         raise Exception("error")
         
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         deform           = 1, 
         sqex             = 1,
         ratt             = 0,
-        block567         = '1,1,1',
+        block567         = '',
         aspp             = 1,
         deeplabversion   = 2,
         usemax           = 0,
