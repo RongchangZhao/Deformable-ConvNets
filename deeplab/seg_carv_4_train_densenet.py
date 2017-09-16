@@ -114,8 +114,8 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            'wd' : 0.001
-            lr_scheduler : mx.lr_scheduler.FactorScheduler(3,0.94)
+            'wd' : 0.001,
+            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(3,0.94)
             }
     '''
     # SGD  optimizer_params, use 'sgd'

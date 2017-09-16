@@ -112,7 +112,8 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            'wd' : 0.001
+            'wd' : 0.001,
+            'lr_scheduler': mx.lr_scheduler.FactorScheduler(3,0.94)
             }
     
     
@@ -134,7 +135,7 @@ def main():
         #arg_params         = deeplab_args,
         #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
-        epoch_end_callback = [mx.callback.do_checkpoint(model_prefix),mx.lr_scheduler.FactorScheduler(2,0.94)],
+        epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
     
 
