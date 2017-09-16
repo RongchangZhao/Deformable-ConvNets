@@ -42,7 +42,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.001
+        lr = 0.03
         run_epochs = 100
         load_epoch = 0
         
@@ -109,6 +109,7 @@ def main():
             'wd' : 0.0003
             }
     '''
+    '''
     # RMSProp optimizer_params, use 'rmsprop'
     
     optimizer_params = {
@@ -123,10 +124,10 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : 0.9,
-            'wd' : 0.0003
-            lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
+            'wd' : 0.0001
+            #lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
             }
-    '''
+    
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -137,9 +138,9 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        #optimizer          = 'sgd',
+        optimizer          = 'sgd',
         #optimizer          = 'adam',
-        optimizer          = 'rmsprop',
+        #optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
         #arg_params         = deeplab_args,
@@ -154,15 +155,15 @@ if __name__ == "__main__":
     
     
     # Deeplab-ResNet Structure
-    '''
+    
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 74,
-        outfeature       = 2048,
+        num_layers       = 38,
+        outfeature       = 1024,
         bottle_neck      = 1,
-        expansion        = 4, 
-        num_group        = 1,
+        expansion        = 0.5, 
+        num_group        = 16,
         dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 1, 
@@ -171,7 +172,7 @@ if __name__ == "__main__":
         deeplabversion   = 2,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
-        batch_size       = 8,
+        batch_size       = 16,
         # data
         num_classes      = 2,
         #num_examples     = 1281167,
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         #lr_step_epochs   = '30,50,70',
         dtype            = 'float32'
     )
-    '''
+    
     
     # UNet Structure
     '''
@@ -212,7 +213,7 @@ if __name__ == "__main__":
     
     # DenseNet Structure
     # units, num_stage, growth_rate, data_type='imagenet', reduction=0.5, drop_out=0., bottle_neck=True,
-    
+    '''
     parser.set_defaults(
         # network
         units            = [6,12,24,16],
@@ -233,7 +234,7 @@ if __name__ == "__main__":
         batch_size        = 16,
         dtype            = 'float32'
     )
-    
+    '''
     
     
     
