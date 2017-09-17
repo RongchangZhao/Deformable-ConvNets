@@ -41,7 +41,7 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.0001
+        lr = 0.001
         run_epochs = 100
         load_epoch = 0
         
@@ -113,7 +113,7 @@ def main():
             'learning_rate': lr,
             #'momentum' : 0.9,
             #'wd' : 0.001,
-            'lr_scheduler': mx.lr_scheduler.FactorScheduler(int(0.5*4800/args.batch_size),0.94)
+            'lr_scheduler': mx.lr_scheduler.FactorScheduler(int(0.75*4800/args.batch_size),0.94)
             }
     
     
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 18,
+        num_filter       = 14,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 

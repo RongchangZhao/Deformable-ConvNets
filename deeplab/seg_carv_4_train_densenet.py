@@ -43,8 +43,8 @@ def main():
         model_prefix = args.model
         load_prefix = cls_model_prefix
         lr = 0.001
-        run_epochs = 100
-        load_epoch = 0
+        run_epochs = 500
+        load_epoch = 19
         
     else:
         raise Exception("error")
@@ -109,6 +109,7 @@ def main():
             'wd' : 0.0003
             }
     '''
+    '''
     # RMSProp optimizer_params, use 'rmsprop'
     
     optimizer_params = {
@@ -124,9 +125,9 @@ def main():
             'learning_rate': lr,
             'momentum' : 0.9,
             'wd' : 0.0003
-            lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
+            #lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
             }
-    '''
+    
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -137,13 +138,13 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        #optimizer          = 'sgd',
+        optimizer          = 'sgd',
         #optimizer          = 'adam',
-        optimizer          = 'rmsprop',
+        #optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
-        #arg_params         = deeplab_args,
-        #aux_params         = deeplab_auxs,
+        arg_params         = deeplab_args,
+        aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
