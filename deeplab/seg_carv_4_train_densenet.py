@@ -42,9 +42,9 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.001
+        lr = 0.01
         run_epochs = 500
-        load_epoch = 19
+        load_epoch = 0
         
     else:
         raise Exception("error")
@@ -109,25 +109,26 @@ def main():
             'wd' : 0.0003
             }
     '''
-    '''
+    
     # RMSProp optimizer_params, use 'rmsprop'
     
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            'wd' : 0.001,
-            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(int(0.5*4800/args.batch_size),0.94)
+            #'wd' : 0.001,
+            'epsilon': 1e-6,
+            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(int(1.2*4800/args.batch_size),0.94)
             }
-    '''
-    # SGD  optimizer_params, use 'sgd'
     
+    # SGD  optimizer_params, use 'sgd'
+    '''
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : 0.9,
             'wd' : 0.0003
             #lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
             }
-    
+    '''
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -138,13 +139,13 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
-        optimizer          = 'sgd',
+        #optimizer          = 'sgd',
         #optimizer          = 'adam',
-        #optimizer          = 'rmsprop',
+        optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
-        arg_params         = deeplab_args,
-        aux_params         = deeplab_auxs,
+        #arg_params         = deeplab_args,
+        #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
         epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
         allow_missing      = True)
@@ -218,7 +219,7 @@ if __name__ == "__main__":
         # network
         units            = [6,12,24,16],
         num_stage        = 4,
-        growth_rate      = 12,
+        growth_rate      = 36,
         usemax           = 0,
         
         # data
@@ -231,7 +232,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 16,
+        batch_size        = 8,
         dtype            = 'float32'
     )
     
