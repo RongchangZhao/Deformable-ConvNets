@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 14,
+        num_filter       = 64,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 16,
+        batch_size        = 3,
         dtype            = 'float32'
     )
     
