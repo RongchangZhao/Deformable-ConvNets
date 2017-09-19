@@ -8,6 +8,7 @@ import logging
 import seg_carv_7_init_from_cls
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
 from symbols.unet_dcn_w_hypers import *
+from symbols.fcdense import *
 from seg_carv_1_data_loader import FileIter
 from seg_carv_1_data_loader import BatchFileIter
 from seg_carv_2_dicemetric import DiceMetric
@@ -36,13 +37,13 @@ def main():
         cls_model_prefix = '-'.join(['CLS'] + args.model.split('-')[1:])
         
         #deeplabnet = irnext_deeplab_dcn(**vars(args))
-        deeplabnet = UNet_dcn(**vars(args))
+        deeplabnet = FC_Dense(**vars(args))
         deeplabsym = deeplabnet.get_seg_symbol()
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.001
-        run_epochs = 500
+        lr = 0.03
+        run_epochs = 100
         load_epoch = 0
         
     else:
@@ -100,7 +101,7 @@ def main():
         symbol        = deeplabsym,
         #label_names   = ['softmax_label', 'softmax2_label']
     )
-    # ADAM optimizer_params
+    # ADAM optimizer_params, use 'adam'
     '''
     optimizer_params = {
             'learning_rate': lr,
@@ -108,15 +109,24 @@ def main():
             'wd' : 0.0003
             }
     '''
-    # RMSProp optimizer_params
+    '''
+    # RMSProp optimizer_params, use 'rmsprop'
+    
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            #'wd' : 0.001,
-            'lr_scheduler': mx.lr_scheduler.FactorScheduler(int(0.75*4800/args.batch_size),0.94)
+            'wd' : 0.001,
+            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(int(0.5*4800/args.batch_size),0.94)
             }
+    '''
+    # SGD  optimizer_params, use 'sgd'
     
-    
+    optimizer_params = {
+            'learning_rate': lr,
+            'momentum' : 0.9,
+            'wd' : 0.0001
+            #lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
+            }
     
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
@@ -128,8 +138,9 @@ def main():
         eval_data          = val_dataiter,
         eval_metric        = eval_metrics,
         kvstore            = kv,
+        optimizer          = 'sgd',
         #optimizer          = 'adam',
-        optimizer          = 'rmsprop',
+        #optimizer          = 'rmsprop',
         optimizer_params   = optimizer_params,
         initializer        = initializer,
         #arg_params         = deeplab_args,
@@ -144,15 +155,15 @@ if __name__ == "__main__":
     
     
     # Deeplab-ResNet Structure
-    '''
+    
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 74,
-        outfeature       = 2048,
+        num_layers       = 38,
+        outfeature       = 1024,
         bottle_neck      = 1,
-        expansion        = 4, 
-        num_group        = 1,
+        expansion        = 0.5, 
+        num_group        = 16,
         dilpat           = 'DEEPLAB.EXP', 
         irv2             = False, 
         deform           = 1, 
@@ -161,7 +172,7 @@ if __name__ == "__main__":
         deeplabversion   = 2,
         taskmode         = 'SEG',
         seg_stride_mode  = '8x',
-        batch_size       = 8,
+        batch_size       = 16,
         # data
         num_classes      = 2,
         #num_examples     = 1281167,
@@ -174,12 +185,13 @@ if __name__ == "__main__":
         #lr_step_epochs   = '30,50,70',
         dtype            = 'float32'
     )
-    '''
+    
     
     # UNet Structure
+    '''
     parser.set_defaults(
         # network
-        num_filter       = 28,
+        num_filter       = 32,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 
@@ -194,9 +206,35 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 8,
+        batch_size        = 16,
         dtype            = 'float32'
     )
+    '''
+    
+    # DenseNet Structure
+    # units, num_stage, growth_rate, data_type='imagenet', reduction=0.5, drop_out=0., bottle_neck=True,
+    '''
+    parser.set_defaults(
+        # network
+        units            = [6,12,24,16],
+        num_stage        = 4,
+        growth_rate      = 12,
+        usemax           = 0,
+        
+        # data
+        num_classes      = 2,
+        #num_examples     = 1281167,
+        #image_shape      = '3,224,224',
+        #lastout          = 7,
+        #min_random_scale = 1.0 , # if input image has min size k, suggest to use
+                              # 256.0/x, e.g. 0.533 for 480
+        # train
+        #num_epochs       = 80,
+        #lr_step_epochs   = '30,50,70',
+        batch_size        = 16,
+        dtype            = 'float32'
+    )
+    '''
     
     
     
@@ -204,7 +242,7 @@ if __name__ == "__main__":
         help='The type of DeeplabV3-ResNeXt model, e.g. DeeplabV3-ResNeXt-152L64X1D4XP, DeeplabV3-ResNeXt-50L96X4D1ov2XP')
     parser.add_argument('--model-dir', default='./model',
         help='directory to save model.')
-    parser.add_argument('--cutoff', type=int, default=800,
+    parser.add_argument('--cutoff', type=int, default=1024,
         help='cutoff size.')
     parser.add_argument('--resize', type=int, default=0,
         help='cutoff size.')
