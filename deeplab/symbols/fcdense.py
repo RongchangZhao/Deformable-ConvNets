@@ -120,7 +120,8 @@ def TransitionBlock(num_stage, data, num_filter, stride, name, nopool=False, dro
         return mx.symbol.Pooling(conv1, global_pool=False, kernel=(2,2), stride=(2,2), pool_type='avg', name=name + '_pool%d' % (num_stage+1))
 
 
-def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, reduction=0.5, drop_out=0., bottle_neck=True, bn_mom=0.9, taskmode='CLS', workspace=512):
+def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=False, \
+             reduction=1.0, drop_out=0., bottle_neck=True, bn_mom=0.9, taskmode='CLS', workspace=512):
     
     """Return DenseNet symbol of imagenet
     Parameters
@@ -154,8 +155,18 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, reductio
             body = mx.sym.Convolution(data=data, num_filter=growth_rate*2, kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
         elif taskmode == 'SEG':
-            body = mx.sym.Convolution(data=data, num_filter=growth_rate*2, kernel=(3, 3), stride=(2,2), pad=(1, 1),
-                                  no_bias=True, name="conv0", workspace=workspace)
+            n_channels = 64 # DSOD Stem Block
+            body = mx.sym.Convolution(data=data, num_filter=n_channels, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+                                  no_bias=True, name="conv0stem0", workspace=workspace)
+            body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0stem0')
+            body = mx.sym.Activation(data=body, act_type='relu', name='relu0stem0')
+            body = mx.sym.Convolution(data=data, num_filter=n_channels, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+                                  no_bias=True, name="conv0stem1", workspace=workspace)
+            body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0stem1')
+            body = mx.sym.Activation(data=body, act_type='relu', name='relu0stem1')
+            n_channels = n_channels * 2 
+            body = mx.sym.Convolution(data=data, num_filter=n_channels, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+                                  no_bias=True, name="conv0stem0", workspace=workspace)
             
         body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
         body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
@@ -200,24 +211,39 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, reductio
         
         nopoolplan = [False, True , True]
         
+        if decoder:
+            decoding_list = []
+        
         for i in range(num_stage-1):
             body = DenseBlock(units[i], body, growth_rate=growth_rate, name='DBstage%d' % (i + 1), bottle_neck=bottle_neck, drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
             n_channels += units[i]*growth_rate
             n_channels = int(math.floor(n_channels*reduction))
             body = TransitionBlock(i, body, n_channels, stride=(1,1), nopool= nopoolplan[i], name='TBstage%d' % (i + 1), drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
+            
+            if decoder:
+                exec('body_{0} = body'.format(i))
+                exec('decoding_list.append(body_{0})'.format(i))
+                
+            
         body = DenseBlock(units[num_stage-1], body, growth_rate=growth_rate, name='DBstage%d' % (num_stage), bottle_neck=bottle_neck, drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
         
         bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
         relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
         
-        return relu1
+        if decoder:
+            exec('decoding_list.append(relu1)'.format(i))
+        
+        if decoder:
+            return decoding_list
+        else:
+            return relu1
         
 
 
 class FC_Dense():
     
     def __init__(self, num_classes,
-                 units, num_stage, growth_rate, data_type='imagenet', reduction=0.5, drop_out=0., bottle_neck=True,
+                 units, num_stage, growth_rate, data_type='imagenet', reduction=1.0, drop_out=0., bottle_neck=True,
                  conv_workspace=512, usemax = False,
                 taskmode='CLS', dtype='float32', **kwargs):
         """
@@ -280,7 +306,7 @@ class FC_Dense():
         relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
         
         # Fix
-        upstride = 8
+        upstride = 4
         # Fix
         atrouslist =  [2,3,6,12,18,24]
         atrouslistlen = len(atrouslist)

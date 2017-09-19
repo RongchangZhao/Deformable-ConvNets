@@ -42,8 +42,8 @@ def main():
 
         model_prefix = args.model
         load_prefix = cls_model_prefix
-        lr = 0.01
-        run_epochs = 500
+        lr = 0.001
+        run_epochs = 100
         load_epoch = 0
         
     else:
@@ -109,26 +109,22 @@ def main():
             'wd' : 0.0003
             }
     '''
-    
     # RMSProp optimizer_params, use 'rmsprop'
+    '''
+    optimizer_params = {
+            'learning_rate': lr,
+            #'momentum' : 0.9,
+            'wd' : 0.001
+            }
+    '''
+    # SGD  optimizer_params, use 'sgd'
     
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            #'wd' : 0.001,
-            'epsilon': 1e-6,
-            'lr_scheduler' : mx.lr_scheduler.FactorScheduler(int(1.2*4800/args.batch_size),0.94)
+            'wd' : 0.0003
             }
     
-    # SGD  optimizer_params, use 'sgd'
-    '''
-    optimizer_params = {
-            'learning_rate': lr,
-            'momentum' : 0.9,
-            'wd' : 0.0003
-            #lr_scheduler : mx.lr_scheduler.FactorScheduler(2,0.95)
-            }
-    '''
     _dice = DiceMetric()
     eval_metrics = [mx.metric.create(_dice)]
     initializer = mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
@@ -147,7 +143,7 @@ def main():
         #arg_params         = deeplab_args,
         #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
-        epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
+        epoch_end_callback = [mx.callback.do_checkpoint(model_prefix), mx.lr_scheduler.FactorScheduler(2,0.95)] ,
         allow_missing      = True)
     
 
@@ -217,9 +213,9 @@ if __name__ == "__main__":
     
     parser.set_defaults(
         # network
-        units            = [6,12,24,16],
+        units            = [6,8,8,8],
         num_stage        = 4,
-        growth_rate      = 36,
+        growth_rate      = 48,
         usemax           = 0,
         
         # data
