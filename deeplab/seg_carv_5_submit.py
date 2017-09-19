@@ -7,6 +7,7 @@ import cv2
 import sys
 import os
 from PIL import Image
+import scipy.misc
 
 def prt(msg):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -221,7 +222,8 @@ def get_mask_step(img_path, cutoff, step, flip):
           break
       if xstop>=img.shape[1]:
         break
-    
+    if resize:
+        mask = scipy.misc.imresize(mask, size, interp='bilinear', mode=None)
     return prob_to_out(mask)
 
 def rle_encode(mask_image):

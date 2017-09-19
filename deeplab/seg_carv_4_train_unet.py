@@ -42,7 +42,7 @@ def main():
         model_prefix = args.model
         load_prefix = cls_model_prefix
         lr = 0.001
-        run_epochs = 100
+        run_epochs = 500
         load_epoch = 0
         
     else:
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 64,
+        num_filter       = 28,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         deform           = 0, 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 3,
+        batch_size        = 8,
         dtype            = 'float32'
     )
     
