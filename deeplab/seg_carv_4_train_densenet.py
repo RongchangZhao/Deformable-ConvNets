@@ -214,13 +214,14 @@ if __name__ == "__main__":
     
     parser.set_defaults(
         # network
-        units            = [6,8,8,8],
+        units            = [6,6,6,6],
         num_stage        = 4,
-        growth_rate      = 48,
+        growth_rate      = 32,
         usemax           = 0,
         
         # data
         num_classes      = 2,
+        reduction        = 1.0
         #num_examples     = 1281167,
         #image_shape      = '3,224,224',
         #lastout          = 7,
@@ -229,7 +230,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 8,
+        batch_size        = 4,
         dtype            = 'float32'
     )
     
