@@ -85,7 +85,7 @@ def main():
         )
     val_dataiter = BatchFileIter(
         path_imglist         = "../../carvana_val.lst",
-        cut_off_size         = cutoff,
+        cut_off_size         = 1280,
         resize               = resize,
         rgb_mean             = (123.68, 116.779, 103.939),
         batch_size           = args.batch_size,
