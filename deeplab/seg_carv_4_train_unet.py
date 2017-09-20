@@ -42,7 +42,7 @@ def main():
         model_prefix = args.model
         load_prefix = cls_model_prefix
         lr = 0.001
-        run_epochs = 500
+        run_epochs = 100
         load_epoch = 0
         
     else:
@@ -85,7 +85,7 @@ def main():
         )
     val_dataiter = BatchFileIter(
         path_imglist         = "../../carvana_val.lst",
-        cut_off_size         = 1280,
+        cut_off_size         = cutoff,
         resize               = resize,
         rgb_mean             = (123.68, 116.779, 103.939),
         batch_size           = args.batch_size,
@@ -112,8 +112,7 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            #'wd' : 0.001,
-            'lr_scheduler': mx.lr_scheduler.FactorScheduler(int(0.75*4800/args.batch_size),0.94)
+            'wd' : 0.001
             }
     
     
@@ -135,7 +134,7 @@ def main():
         #arg_params         = deeplab_args,
         #aux_params         = deeplab_auxs,
         batch_end_callback = mx.callback.Speedometer(args.batch_size, 20),
-        epoch_end_callback = mx.callback.do_checkpoint(model_prefix),
+        epoch_end_callback = [mx.callback.do_checkpoint(model_prefix),mx.lr_scheduler.FactorScheduler(2,0.94)],
         allow_missing      = True)
     
 
@@ -179,9 +178,10 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 28,
+        num_filter       = 32,
         bottle_neck      = 0,
         unitbatchnorm    = True,
+        expandmode       = 'exp',
         deform           = 0, 
         sqex             = 0,
         # data
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 8,
+        batch_size        = 16,
         dtype            = 'float32'
     )
     
