@@ -257,7 +257,7 @@ def main():
       help='gpu for use.')
     parser.add_argument('--cutoff', type=int, default=1280,
       help='cutoff size.')
-    parser.add_argument('--step', type=int, default=256,
+    parser.add_argument('--step', type=int, default=319,
       help='step size.')
     parser.add_argument('--resize', type=int, default=0,
       help='resize size.')
