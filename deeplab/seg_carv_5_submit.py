@@ -193,8 +193,8 @@ def get_mask_step(img_path, cutoff, step, flip):
     if cutoff is None or cutoff<=0:
         prob = get_mask_prob(img)
         return prob_to_out(prob)
-    if resize:
-        img = cv2.resize(img, (img.shape[0]/2, img.shape[1]/2))
+    #if args.resize:
+    #    img = cv2.resize(img, (img.shape[0]/2, img.shape[1]/2))
 
     mask = np.zeros( (2,img.shape[1], img.shape[2]), dtype=np.float32 )
 
@@ -222,8 +222,8 @@ def get_mask_step(img_path, cutoff, step, flip):
           break
       if xstop>=img.shape[1]:
         break
-    if resize:
-        mask = scipy.misc.imresize(mask, size, interp='bilinear', mode=None)
+    #if args.resize:
+    #    mask = scipy.misc.imresize(mask, 2.0, interp='bilinear', mode=None)
     return prob_to_out(mask)
 
 def rle_encode(mask_image):
@@ -249,15 +249,15 @@ def main():
     parser = argparse.ArgumentParser(description='carvn submit')
     parser.add_argument('--model-dir', default='./',
       help='directory to save model.')
-    parser.add_argument('--model', default='DeeplabV3-ResNeXt-152L64X1D4XP_997265',
+    parser.add_argument('--model', default='deeplab-1152',
       help='filename to savemodel.')
-    parser.add_argument('--epoch', type=int, default=18,
+    parser.add_argument('--epoch', type=int, default=51,
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')
     parser.add_argument('--cutoff', type=int, default=1280,
       help='cutoff size.')
-    parser.add_argument('--step', type=int, default=256,
+    parser.add_argument('--step', type=int, default=319,
       help='step size.')
     parser.add_argument('--resize', type=int, default=0,
       help='resize size.')

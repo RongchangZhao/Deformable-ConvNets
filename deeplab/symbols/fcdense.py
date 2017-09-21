@@ -155,7 +155,7 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=
             body = mx.sym.Convolution(data=data, num_filter=growth_rate*2, kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
         elif taskmode == 'SEG':
-            n_channels = 64 # DSOD Stem Block
+            #n_channels = 64 # DSOD Stem Block
             body = mx.sym.Convolution(data=data, num_filter=n_channels, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv0stem0", workspace=workspace)
             body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0stem0')
@@ -209,7 +209,7 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=
     
     elif taskmode == 'SEG':
         
-        nopoolplan = [False, True , True]
+        nopoolplan = [False, False , True]
         
         if decoder:
             decoding_list = []
@@ -306,7 +306,7 @@ class FC_Dense():
         relu_fc6 = mx.sym.Activation(data=fc6, act_type='relu', name='relu_fc6')
         
         # Fix
-        upstride = 4
+        upstride = 8
         # Fix
         atrouslist =  [2,3,6,12,18,24]
         atrouslistlen = len(atrouslist)

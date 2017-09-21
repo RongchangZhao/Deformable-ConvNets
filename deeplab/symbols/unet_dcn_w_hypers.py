@@ -171,44 +171,79 @@ def decoder_unit(data, num_filter, stride, dim_match, name, bottle_neck=0, kerne
     
     
 def UNet(data, num_filter, bottle_neck=0, \
-                 deform=0, sqex=1, bn_mom=0.9, unitbatchnorm=False, workspace=256, memonger=False, **kwargs):
+                 deform=0, sqex=1, bn_mom=0.9, unitbatchnorm=False, expandmode='exp',workspace=256, memonger=False, **kwargs):
     
     en_kwargs = {"deform":deform, "sqex":sqex, "unitbatchnorm":unitbatchnorm}
     de_kwargs = {"sqex":sqex, "unitbatchnorm":unitbatchnorm}
     
+    if expandmode=='exp':
+        def expander(i):
+            return i**2/2
+    elif expandmode=='lin':
+        def expander(i):
+            return i
+    
     e0 = encoder_unit(data, num_filter, 1, True, "e0", **en_kwargs)
-    syn0 = encoder_unit(e0, num_filter*2, 1, True, "syn0", **en_kwargs) # 1120
+    syn0 = encoder_unit(e0, num_filter*expander(2), 1, True, "syn0", **en_kwargs) # 1120
     
     e1 = mx.sym.Pooling(data=syn0, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
-    e2 = encoder_unit(e1, num_filter*2, 1, True, "e2", **en_kwargs)
-    syn1 = encoder_unit(e2, num_filter*4, 1, True, "syn1", **en_kwargs) # 560
+    e2 = encoder_unit(e1, num_filter*expander(2), 1, True, "e2", **en_kwargs)
+    syn1 = encoder_unit(e2, num_filter*expander(3), 1, True, "syn1", **en_kwargs) # 560
 
     e3 = mx.sym.Pooling(data=syn1, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
-    e4 = encoder_unit(e3, num_filter*4, 1, True, "e4", **en_kwargs)
-    syn2 = encoder_unit(e4, num_filter*8, 1, True, "syn2", **en_kwargs) # 280
+    e4 = encoder_unit(e3, num_filter*expander(3), 1, True, "e4", **en_kwargs)
+    syn2 = encoder_unit(e4, num_filter*expander(4), 1, True, "syn2", **en_kwargs) # 280
     
     e5 = mx.sym.Pooling(data=syn2, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
+    e6 = encoder_unit(e5, num_filter*expander(4), 1, True, "e6" , **en_kwargs)
+    #e7 = encoder_unit(e6, num_filter*expander(5), 1, True, "e7" , **en_kwargs) # 140
     
-    e6 = encoder_unit(e5, num_filter*8, 1, True, "e6" , **en_kwargs)
-    e7 = encoder_unit(e6, num_filter*16, 1, True, "e7" , **en_kwargs) # 140
+    ### Fix V1 Start From Here, Uncomment Last To Recover
+    syn3 = encoder_unit(e6, num_filter*expander(5), 1, True, "syn3" , **en_kwargs) # 140 
     
-    d9 = mx.symbol.Concat(*[decoder_unit(e7, num_filter * 16 , 2 , True, "d9" , kernel=2, pad=0, **de_kwargs ), syn2])
-    d8 = decoder_unit(d9, num_filter * 8, 1, True, "d8", **de_kwargs)
-    d7 = decoder_unit(d8, num_filter * 8, 1, True, "d7", **de_kwargs)
+    e7 = mx.sym.Pooling(data=syn3, kernel=(3,3), stride=(2,2),pad=(1,1),pool_type='max') 
+    e8 = encoder_unit(e7, num_filter*expander(5), 1, True, "e8", **en_kwargs )
+    e9 = encoder_unit(e8, num_filter*expander(6), 1, True, "e9", **en_kwargs) # 70
+    
+    ### Fix V2 Start From Here, Uncomment Last To Recover
+    '''
+    syn4 = encoder_unit(e8, num_filter*expander(6), 1, True, "syn4", **en_kwargs) # 70
+    
+    e9 = mx.sym.Pooling(data=syn4, kernel=(3,3), stride=(2,2),pad=(1,1),pool_type='max') 
+    e10 = encoder_unit(e9, num_filter*expander(6), 1, True, "e9", **en_kwargs )
+    e11 = encoder_unit(e10, num_filter*expander(7), 1, True, "e10", **en_kwargs) # 35
+    
+    d15 = mx.symbol.Concat(*[decoder_unit(e11, num_filter*expander(7),2,True,"e11",kernel=2,pad=0,**de_kwargs),syn4])
+    d14 = decoder_unit(d15, num_filter * expander(6), 1, True, "d14", **de_kwargs)
+    d13 = decoder_unit(d14, num_filter * expander(6), 1, True, "d13", **de_kwargs)
+    d12 = mx.symbol.Concat(*[decoder_unit(d13, num_filter*expander(6),2,True,"d12",kernel=2,pad=0,**de_kwargs),syn3])
+    '''
+    ### Fix V2 End Till Here, Uncomment Next To Recover
+    d12 = mx.symbol.Concat(*[decoder_unit(e9, num_filter*expander(6),2,True,"d12",kernel=2,pad=0,**de_kwargs),syn3])
+    d11 = decoder_unit(d12, num_filter * expander(5), 1, True, "d11", **de_kwargs)
+    d10 = decoder_unit(d11, num_filter * expander(5), 1, True, "d10", **de_kwargs)
+    
+    d9 = mx.symbol.Concat(*[decoder_unit(d10, num_filter * expander(5) , 2 , True, "d9" , kernel=2, pad=0, **de_kwargs ), syn2])
+    ### Fix V1 End Till Here, Uncomment Next To Recover
+    #d9 = mx.symbol.Concat(*[decoder_unit(e7, num_filter * expander(5) , 2 , True, "d9" , kernel=2, pad=0, **de_kwargs ), syn2])
+    
+    
+    d8 = decoder_unit(d9, num_filter * expander(4), 1, True, "d8", **de_kwargs)
+    d7 = decoder_unit(d8, num_filter * expander(4), 1, True, "d7", **de_kwargs)
 
     
-    d6 = mx.symbol.Concat(*[decoder_unit(d7, num_filter*8, 2, True, "d6" , kernel=2, pad=0, **de_kwargs), syn1] )
+    d6 = mx.symbol.Concat(*[decoder_unit(d7, num_filter*expander(4), 2, True, "d6" , kernel=2, pad=0, **de_kwargs), syn1] )
 
     
-    d5 = decoder_unit(d6, num_filter * 4, 1, True, "d5", **de_kwargs)
-    d4 = decoder_unit(d5, num_filter * 4, 1, True, "d4", **de_kwargs)
+    d5 = decoder_unit(d6, num_filter * expander(3), 1, True, "d5", **de_kwargs)
+    d4 = decoder_unit(d5, num_filter * expander(3), 1, True, "d4", **de_kwargs)
 
-    d3 = mx.symbol.Concat(*[decoder_unit(d4, num_filter * 4, 2, True, "d3", kernel=2, pad=0, **de_kwargs), syn0])
+    d3 = mx.symbol.Concat(*[decoder_unit(d4, num_filter * expander(3), 2, True, "d3", kernel=2, pad=0, **de_kwargs), syn0])
 
-    d2 = decoder_unit(d3, num_filter * 2, 1, True, "d2", **de_kwargs)
-    d1 = decoder_unit(d2, num_filter * 2, 1, True, "d1", **de_kwargs)
+    d2 = decoder_unit(d3, num_filter * expander(2), 1, True, "d2", **de_kwargs)
+    d1 = decoder_unit(d2, num_filter * expander(2), 1, True, "d1", **de_kwargs)
 
-    d0 = decoder_unit(d1, num_filter * 2, 1, True, "d0", **de_kwargs)
+    d0 = decoder_unit(d1, num_filter * expander(2), 1, True, "d0", **de_kwargs)
     
     return d0
     
@@ -216,7 +251,7 @@ def UNet(data, num_filter, bottle_neck=0, \
 class UNet_dcn():
     
     def __init__(self, num_classes , num_filter=32, bottle_neck=0, \
-                 deform=0, sqex = 0, conv_workspace=256,
+                 deform=0, sqex = 0, expandmode='exp',conv_workspace=256,
                  dtype='float32', **kwargs):
         """
         Use __init__ to define parameter network needs
@@ -227,6 +262,7 @@ class UNet_dcn():
         self.num_classes = num_classes
         self.num_filter = num_filter
         self.bottle_neck = bottle_neck
+        self.expandmode = expandmode
         self.deform = deform
         self.sqex = sqex
     
@@ -240,6 +276,7 @@ class UNet_dcn():
         conv_feat = UNet(data,
                             self.num_filter,
                             bottle_neck=self.bottle_neck,
+                            expandmode=self.expandmode,
                             deform=self.deform,
                             sqex=self.sqex,
                             conv_workspace=256,
