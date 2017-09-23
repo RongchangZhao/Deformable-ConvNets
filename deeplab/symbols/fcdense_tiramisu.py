@@ -87,7 +87,7 @@ def DenseBlock(units_num, data, growth_rate, name, bottle_neck=True, drop_out=0.
     return data
 
 
-def TransitionBlock(num_stage, data, num_filter, stride, name, nopool=False, drop_out=0.0, bn_mom=0.9, workspace=512):
+def TransitionBlock(num_stage, data, num_filter, stride, name, nopool=False, downsample=True, drop_out=0.0, bn_mom=0.9, workspace=512):
     """Return TransitionBlock Unit symbol for building DenseNet
     Parameters
     ----------
@@ -116,8 +116,12 @@ def TransitionBlock(num_stage, data, num_filter, stride, name, nopool=False, dro
     
     if nopool:
         return conv1
-    else:
+    elif downsample:
         return mx.symbol.Pooling(conv1, global_pool=False, kernel=(2,2), stride=(2,2), pool_type='avg', name=name + '_pool%d' % (num_stage+1))
+    else:
+        return mx.symbol.Deconvolution(conv1, num_filter=num_filter, kernel=(2,2), 
+                                             stride=(2, 2), no_bias=True, name='upsampling',
+                                             attr={'lr_mult': '1.0'}, workspace=self.workspace)
 
 
 def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=False, \
@@ -209,7 +213,7 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=
     
     elif taskmode == 'SEG':
         
-        nopoolplan = [False, False , True]
+        nopoolplan = [False, False , False]
         
         if decoder:
             decoding_list = []
@@ -226,17 +230,29 @@ def DenseNet(data, units, num_stage, growth_rate, num_class, data_type, decoder=
                 
             
         body = DenseBlock(units[num_stage-1], body, growth_rate=growth_rate, name='DBstage%d' % (num_stage), bottle_neck=bottle_neck, drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
+        n_channels += units[i]*growth_rate
+        n_channels = int(math.floor(n_channels*reduction))
         
         bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
         relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
+        body = relu1
+        
+        
         
         if decoder:
-            exec('decoding_list.append(relu1)'.format(i))
+            for i in range(num_stage-1)
+                body = DenseBlock(units[num_stage-i-2], body, growth_rate=growth_rate, name='DBstage%d' % (i + 1+ len(num_stage)), bottle_neck=bottle_neck, drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
+                n_channels += units[i]*growth_rate
+                n_channels = int(math.floor(n_channels*reduction))
+                body = TransitionBlock(i, body, n_channels, stride=(1,1), nopool= False, downsample=False, name='TBstage%d' % (i + 1), drop_out=drop_out, bn_mom=bn_mom, workspace=workspace)
+                exec('body = mx.symbol.Concat(*[body, body_{0}])'.format(num_stage-i-2))
+            # exec('decoding_list.append(relu1)'.format(i))
+            
         
         if decoder:
-            return decoding_list
+            return body
         else:
-            return relu1
+            return body
         
 
 

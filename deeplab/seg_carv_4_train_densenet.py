@@ -8,7 +8,7 @@ import logging
 import seg_carv_7_init_from_cls
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
 from symbols.unet_dcn_w_hypers import *
-from symbols.fcdense import *
+from symbols.fcdense_tiramisu import *
 from seg_carv_1_data_loader import FileIter
 from seg_carv_1_data_loader import BatchFileIter
 from seg_carv_2_dicemetric import DiceMetric
