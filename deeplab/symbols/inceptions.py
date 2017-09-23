@@ -1,22 +1,254 @@
-# --------------------------------------------------------
-# Deformable Convolutional Networks
-# Copyright (c) 2016 by Contributors
-# Copyright (c) 2017 Microsoft
-# Licensed under The Apache-2.0 License [see LICENSE for details]
-# Written by Zheng Zhang
-# --------------------------------------------------------
+# -*- coding:utf-8 -*-
+__author__ = 'zhangshuai'
+modified_date = '16/7/5'
+__modify__ = 'anchengwu'
+modified_date = '17/2/22'
+__modify2__ = 'weiyangwang'
+modified_date = '17/9/20'
+
+
+'''
+Inception v4 , suittable for image with around 299 x 299
+
+Reference:
+    Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning
+    Christian Szegedy, Sergey Ioffe, Vincent Vanhoucke
+    arXiv.1602.07261
+'''
+
 
 # --------------------------------------------------------
 
 # Modified By DeepInsight
 
 #  0. Todo: Make Code Tidier (with exec)
-#  1. Todo: ResNeXt v2 : Grouping + Pre-Activation
-#  2. Todo: IRB: First Block of Inception-ResNet , with Grouping
-#  3. Todo: DeepLab v3, with multiple dilation pattern options
-#  4. Todo: Dual Path Network ( DenseNet + ResNeXt Nx4d)
+#  1. Todo: Scalable Inception V3, V4, -resnetV2
+#  2. Todo: Modified For XCeption, make Conv11 num_group_11 and Other Conv num_group independent.
+#  3. Todo: Module Options: Deformable, Attention Along Features/Along Image
+#  4. Todo: Adaptive Encoder-Decoder Symbol For Segmenter
+#  5. Todo: Adaptive Symbol For Detector
 
 # --------------------------------------------------------
+
+
+import mxnet as mx
+import numpy as np
+
+
+######## Inception ResNetv2: Scalable, XCeptionized
+
+# Todo
+
+######## Inception V4: Scalable, XCeptionized
+
+
+def Conv(data, num_filter, num_group = 1, kernel=(1, 1), stride=(1, 1), pad=(0, 0), name=None, suffix=''):
+    conv = mx.sym.Convolution(data=data, num_filter=num_filter, num_group=num_group, kernel=kernel, stride=stride, pad=pad, no_bias=True, name='%s%s_conv2d' %(name, suffix))
+    bn = mx.sym.BatchNorm(data=conv, name='%s%s_batchnorm' %(name, suffix), fix_gamma=True)
+    act = mx.sym.Activation(data=bn, act_type='relu', name='%s%s_relu' %(name, suffix))
+
+    return act
+
+
+def Inception_stem_V4(data, basefilter=32, stem_num_group=1, stem_num_group_11=1, name= None):
+    c = Conv(data, basefilter, num_group=stem_num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv1_3*3' %name)
+    c = Conv(c, basefilter, num_group=stem_num_group, kernel=(3, 3), name='%s_conv2_3*3' %name)
+    c = Conv(c, basefilter, num_group=stem_num_group, kernel=(3, 3), pad=(1, 1), name='%s_conv3_3*3' %name)
+
+    p1 = mx.sym.Pooling(c, kernel=(3, 3), stride=(2, 2), pool_type='max', name='%s_maxpool_1' %name)
+    c2 = Conv(c, basefilter*3, num_group=stem_num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv4_3*3' %name)
+    concat = mx.sym.Concat(*[p1, c2], name='%s_concat_1' %name)
+
+    c1 = Conv(concat, basefilter*2, num_group=stem_num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv5_1*1' %name)
+    c1 = Conv(c1, basefilter*3, num_group=stem_num_group, kernel=(3, 3), name='%s_conv6_3*3' %name)
+
+    c2 = Conv(concat, basefilter*2, num_group=stem_num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv7_1*1' %name)
+    c2 = Conv(c2, basefilter*2, num_group=stem_num_group, kernel=(7, 1), pad=(3, 0), name='%s_conv8_7*1' %name)
+    c2 = Conv(c2, basefilter*2, num_group=stem_num_group, kernel=(1, 7), pad=(0, 3), name='%s_conv9_1*7' %name)
+    c2 = Conv(c2, basefilter*3, num_group=stem_num_group, kernel=(3, 3), pad=(0, 0), name='%s_conv10_3*3' %name)
+
+    concat = mx.sym.Concat(*[c1, c2], name='%s_concat_2' %name)
+
+    c1 = Conv(concat, basefilter*6, num_group=stem_num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv11_3*3' %name)
+    p1 = mx.sym.Pooling(concat, kernel=(3, 3), stride=(2, 2), pool_type='max', name='%s_maxpool_2' %name)
+
+    concat = mx.sym.Concat(*[c1, p1], name='%s_concat_3' %name)
+    return concat
+
+
+def InceptionA_V4(input, basefilter=32, num_group=1 ,num_group_11=1,  name=None):
+    # Pool33-Conv11
+    p1 = mx.sym.Pooling(input, kernel=(3, 3), pad=(1, 1), pool_type='avg', name='%s_avgpool_1' %name)
+    c1 = Conv(p1, basefilter*3, kernel=(1, 1), num_group=num_group_11, pad=(0, 0), name='%s_conv1_1*1' %name)
+    # Conv11
+    c2 = Conv(input, basefilter*3, kernel=(1, 1), num_group=num_group_11, pad=(0, 0), name='%s_conv2_1*1' %name)
+    # Conv11-Conv33
+    c3 = Conv(input, basefilter*2, kernel=(1, 1), num_group=num_group_11, pad=(0, 0), name='%s_conv3_1*1' %name)
+    c3 = Conv(c3, basefilter*3, kernel=(3, 3), num_group=num_group, pad=(1, 1), name='%s_conv4_3*3' %name)
+    # Conv11-Conv33-Conv33
+    c4 = Conv(input, basefilter*2, kernel=(1, 1), num_group=num_group_11, pad=(0, 0), name='%s_conv5_1*1' % name)
+    c4 = Conv(c4, basefilter*3, kernel=(3, 3), num_group=num_group, pad=(1, 1), name='%s_conv6_3*3' % name)
+    c4 = Conv(c4, basefilter*3, kernel=(3, 3), num_group=num_group, pad=(1, 1), name='%s_conv7_3*3' %name)
+    
+    concat = mx.sym.Concat(*[c1, c2, c3, c4], name='%s_concat_1' %name)
+    return concat
+
+
+def ReductionA_V4(input, basefilter=32, num_group=1, num_group_11=1, name=None):
+    # Pool33
+    p1 = mx.sym.Pooling(input, kernel=(3, 3), stride=(2, 2), pool_type='max', name='%s_maxpool_1' %name)
+    # Conv33
+    c2 = Conv(input, basefilter*12, num_group=num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv1_3*3' %name)
+    # Conv11-Conv33-Conv33
+    c3 = Conv(input, basefilter*6, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv2_1*1' %name)
+    c3 = Conv(c3, basefilter*7, num_group=num_group, kernel=(3, 3), pad=(1, 1), name='%s_conv3_3*3' %name)
+    c3 = Conv(c3, basefilter*8, num_group=num_group, kernel=(3, 3), stride=(2, 2), pad=(0, 0), name='%s_conv4_3*3' %name)
+
+    concat = mx.sym.Concat(*[p1, c2, c3], name='%s_concat_1' %name)
+
+    return concat
+
+def InceptionB_V4(input, basefilter=32, num_group=1, num_group_11=1, name=None):
+    # Pool33-Conv11
+    p1 = mx.sym.Pooling(input, kernel=(3, 3), pad=(1, 1), pool_type='avg', name='%s_avgpool_1' %name)
+    c1 = Conv(p1, basefilter*4, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv1_1*1' %name)
+    # Conv11
+    c2 = Conv(input, basefilter*12, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv2_1*1' %name)
+    # Conv11-Conv17-Conv71
+    c3 = Conv(input, basefilter*6, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv3_1*1' %name)
+    c3 = Conv(c3, basefilter*7, num_group=num_group, kernel=(1, 7), pad=(0, 3), name='%s_conv4_1*7' %name)
+    #paper wrong
+    c3 = Conv(c3, basefilter*8, num_group=num_group, kernel=(7, 1), pad=(3, 0), name='%s_conv5_1*7' %name)
+    
+    # COnv11-Conv17-Conv71-Conv17-Conv71
+    c4 = Conv(input, basefilter*6, kernel=(1, 1), pad=(0, 0), name='%s_conv6_1*1' %name)
+    c4 = Conv(c4, basefilter*6, num_group=num_group, kernel=(1, 7), pad=(0, 3), name='%s_conv7_1*7' %name)
+    c4 = Conv(c4, basefilter*7, num_group=num_group, kernel=(7, 1), pad=(3, 0), name='%s_conv8_7*1' %name)
+    c4 = Conv(c4, basefilter*7, num_group=num_group, kernel=(1, 7), pad=(0, 3), name='%s_conv9_1*7' %name)
+    c4 = Conv(c4, basefilter*8, num_group=num_group, kernel=(7, 1), pad=(3, 0), name='%s_conv10_7*1' %name)
+
+    concat = mx.sym.Concat(*[c1, c2, c3, c4], name='%s_concat_1' %name)
+
+    return concat
+
+def ReductionB_V4(input, basefilter=64, num_group=1, num_group_11=1,  name=None):
+    # Pool33
+    p1 = mx.sym.Pooling(input, kernel=(3, 3), stride=(2, 2), pool_type='max', name='%s_maxpool_1' %name)
+    # Conv11-Conv33
+    c2 = Conv(input, basefilter*3 , num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv1_1*1' %name)
+    c2 = Conv(c2, basefilter*3, num_group=num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv2_3*3' %name)
+    # Conv11-Conv17-Conv71-Conv33
+    c3 = Conv(input, basefilter*3, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv3_1*1' %name)
+    c3 = Conv(c3, basefilter*4, num_group=num_group, kernel=(1, 7), pad=(0, 3), name='%s_conv4_1*7' %name)
+    c3 = Conv(c3, basefilter*5, num_group=num_group, kernel=(7, 1), pad=(3, 0), name='%s_conv5_7*1' %name)
+    c3 = Conv(c3, basefilter*5, num_group=num_group, kernel=(3, 3), stride=(2, 2), name='%s_conv6_3*3' %name)
+
+    concat = mx.sym.Concat(*[p1, c2, c3], name='%s_concat_1' %name)
+
+    return concat
+
+
+def InceptionC_V4(input, basefilter=64, num_group=1, num_group_11=1, name=None):
+    # Pool33-Conv11
+    p1 = mx.sym.Pooling(input, kernel=(3, 3), pad=(1, 1), pool_type='avg', name='%s_avgpool_1' %name)
+    c1 = Conv(p1, basefilter*4, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv1_1*1' %name)
+    # Conv11
+    c2 = Conv(input, basefilter*4, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv2_1*1' %name)
+    # Conv11-[Conv13;Conv31]
+    c3 = Conv(input, basefilter*6, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv3_1*1' %name)
+    c3_1 = Conv(c3, basefilter*4, num_group=num_group, kernel=(1, 3), pad=(0, 1), name='%s_conv4_3*1' %name)
+    c3_2 = Conv(c3, basefilter*4, num_group=num_group, kernel=(3, 1), pad=(1, 0), name='%s_conv5_1*3' %name)
+    # Conv11-Conv13-Conv31-[Conv13;Conv31]
+    c4 = Conv(input, basefilter*6, num_group=num_group_11, kernel=(1, 1), pad=(0, 0), name='%s_conv6_1*1' %name)
+    c4 = Conv(c4, basefilter*7, num_group=num_group, kernel=(1, 3), pad=(0, 1), name='%s_conv7_1*3' %name)
+    c4 = Conv(c4, basefilter*8, num_group=num_group, kernel=(3, 1), pad=(1, 0), name='%s_conv8_3*1' %name)
+    c4_1 = Conv(c4, basefilter*4, num_group=num_group, kernel=(3, 1), pad=(1, 0), name='%s_conv9_1*3' %name)
+    c4_2 = Conv(c4, basefilter*4, num_group=num_group, kernel=(1, 3), pad=(0, 1), name='%s_conv10_3*1' %name)
+
+    concat = mx.sym.Concat(*[c1, c2, c3_1, c3_2, c4_1, c4_2], name='%s_concat' %name)
+
+    return concat
+
+
+def get_symbol_V4(num_classes=1000, units=[4,7,3], basefilter=32, num_group=1, num_group_11=1, dtype='float32', **kwargs):
+    data = mx.sym.Variable(name="data")
+    if dtype == 'float32':
+        data = mx.sym.identity(data=data, name='id')
+    else:
+        if dtype == 'float16':
+            data = mx.sym.Cast(data=data, dtype=np.float16)
+    x = Inception_stem_V4(data, 
+                          basefilter=basefilter,
+                          num_group=num_group,
+                          num_group11=num_group_11,
+                          name='in_stem')
+
+    #4 * InceptionA By Default
+
+    for i in range(units[0]):
+        x = InceptionA_V4(x,
+                          basefilter=basefilter,
+                          num_group=num_group,
+                          num_group11=num_group_11,
+                          name='in%dA' %(i+1))
+
+    #Reduction A
+    x = ReductionA_V4(x,
+                      basefilter=basefilter,
+                      num_group=num_group,
+                      num_group11=num_group_11,
+                      name='re1A')
+
+    #7 * InceptionB By Default
+
+    for i in range(units[1]):
+        x = InceptionB_V4(x,
+                          basefilter=basefilter,
+                          num_group=num_group,
+                          num_group11=num_group_11,
+                          name='in%dB' %(i+1))
+
+    #ReductionB
+    x = ReductionB_V4(x,
+                      basefilter=basefilter*2,
+                      num_group=num_group,
+                      num_group11=num_group_11,
+                      name='re1B')
+
+    #3 * InceptionC By Default
+
+    for i in range(units[2]):
+        x = InceptionC_V4(x,
+                          basefilter=basefilter*2,
+                          num_group=num_group,
+                          num_group11=num_group_11,
+                          name='in%dC' %(i+1))
+
+    #Average Pooling
+    x = mx.sym.Pooling(x, kernel=(8, 8), pad=(1, 1), pool_type='avg', name='global_avgpool')
+
+    #Dropout
+    x = mx.sym.Dropout(x, p=0.2)
+
+    flatten = mx.sym.Flatten(x, name='flatten')
+    fc1 = mx.sym.FullyConnected(flatten, num_hidden=num_classes, name='fc1')
+    if dtype == 'float16':
+        fc1 = mx.sym.Cast(data=fc1, dtype=np.float32)
+    softmax = mx.sym.SoftmaxOutput(fc1, name='softmax')
+
+    return softmax
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 import cPickle
@@ -25,6 +257,25 @@ import mxnet as mx
 
 
 ###### UNIT LIST #######
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Todo 1,2,4
 
