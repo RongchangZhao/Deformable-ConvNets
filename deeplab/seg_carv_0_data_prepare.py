@@ -19,6 +19,8 @@ SEED = 727
 
 DATA_ROOT = '/data1/deepinsight/carvn'
 
+val_idmap = {'120c1dc7b116': 1}
+
 id2images = {}
 
 train_image_dir = os.path.join(DATA_ROOT, 'train_hq')
@@ -46,7 +48,7 @@ for i in xrange(len(id2images)):
     for idx in idxs:
         data_image = os.path.join(DATA_ROOT, 'train_hq', "%s_%02d.jpg" % (image_id, idx))
         mask_image = os.path.join(DATA_ROOT, 'train_masks', "%s_%02d_mask.gif" % (image_id, idx))
-        if i < val_count:
+        if image_id in val_idmap or (len(val_idmap)==0 and i < val_count):
             val_f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
         else:
             train_f.write("%d\t%s\t%s\n" % (0, data_image, mask_image))
