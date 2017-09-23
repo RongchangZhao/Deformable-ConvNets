@@ -249,9 +249,9 @@ def main():
     parser = argparse.ArgumentParser(description='carvn submit')
     parser.add_argument('--model-dir', default='./',
       help='directory to save model.')
-    parser.add_argument('--model', default='deeplab-1152',
+    parser.add_argument('--model', default='UNet1024_28_99695',
       help='filename to savemodel.')
-    parser.add_argument('--epoch', type=int, default=51,
+    parser.add_argument('--epoch', type=int, default=77,
       help='load epoch.')
     parser.add_argument('--gpu', type=int, default=0,
       help='gpu for use.')

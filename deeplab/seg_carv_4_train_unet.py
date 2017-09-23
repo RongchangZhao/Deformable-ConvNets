@@ -112,7 +112,7 @@ def main():
     optimizer_params = {
             'learning_rate': lr,
             #'momentum' : 0.9,
-            'wd' : 0.001,
+            #'wd' : 0.001,
             'lr_scheduler':mx.lr_scheduler.FactorScheduler(int(0.75*4800/args.batch_size),0.94)
             }
     
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # UNet Structure
     parser.set_defaults(
         # network
-        num_filter       = 32,
+        num_filter       = 28,
         bottle_neck      = 0,
         unitbatchnorm    = True,
         expandmode       = 'exp',
@@ -195,7 +195,7 @@ if __name__ == "__main__":
         # train
         #num_epochs       = 80,
         #lr_step_epochs   = '30,50,70',
-        batch_size        = 16,
+        batch_size        = 8,
         dtype            = 'float32'
     )
     
