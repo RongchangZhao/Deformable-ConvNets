@@ -448,45 +448,64 @@ def get_symbol_V4(num_classes=1000, units=[4,7,3], basefilter=32, num_group=1, n
 
 ######## Inception V3: Scalable, XCeptionized
 
-
-
-def Inception7A(data,
-                num_1x1,
-                num_3x3_red, num_3x3_1, num_3x3_2,
-                num_5x5_red, num_5x5,
-                pool, proj,
-                name):
-    tower_1x1 = Conv(data, num_1x1, name=('%s_conv' % name))
-    tower_5x5 = Conv(data, num_5x5_red, name=('%s_tower' % name), suffix='_conv')
-    tower_5x5 = Conv(tower_5x5, num_5x5, kernel=(5, 5), pad=(2, 2), name=('%s_tower' % name), suffix='_conv_1')
-    tower_3x3 = Conv(data, num_3x3_red, name=('%s_tower_1' % name), suffix='_conv')
-    tower_3x3 = Conv(tower_3x3, num_3x3_1, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_1')
-    tower_3x3 = Conv(tower_3x3, num_3x3_2, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_2')
+# First Stage
+def Inception7A_V3(data,
+                   basefilter=16,  #
+                   num_filters=[], # Length-7
+                   num_group=1, num_group_11=1,
+                   pool='avg', name=''):
+    assert len(num_filters)==7
+    num_1x1, num_3x3_red, num_3x3_1, num_3x3_2, num_5x5_red, num_5x5, proj = num_filters
+    # Branch 1 : Conv11
+    tower_1x1 = Conv(data, basefilter*num_1x1, num_group=num_group_11,  name=('%s_conv' % name))
+    # Branch 2 : Conv11-Conv55
+    tower_5x5 = Conv(data, basefilter*num_5x5_red, num_group=num_group_11,  name=('%s_tower' % name), suffix='_conv')
+    tower_5x5 = Conv(tower_5x5, basefilter*num_5x5, num_group=num_group, kernel=(5, 5), pad=(2, 2), name=('%s_tower' % name), suffix='_conv_1')
+    # Branch 3 : Conv11-Conv33-Conv33
+    tower_3x3 = Conv(data, basefilter*num_3x3_red, num_group=num_group_11, name=('%s_tower_1' % name), suffix='_conv')
+    tower_3x3 = Conv(tower_3x3, basefilter*num_3x3_1, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_1')
+    tower_3x3 = Conv(tower_3x3, basefilter*num_3x3_2, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_2')
+    # Branch 4: Pool33-Conv11
     pooling = mx.sym.Pooling(data=data, kernel=(3, 3), stride=(1, 1), pad=(1, 1), pool_type=pool, name=('%s_pool_%s_pool' % (pool, name)))
-    cproj = Conv(pooling, proj, name=('%s_tower_2' %  name), suffix='_conv')
+    cproj = Conv(pooling, basefilter*proj, num_group=num_group_11, name=('%s_tower_2' %  name), suffix='_conv')
     concat = mx.sym.Concat(*[tower_1x1, tower_5x5, tower_3x3, cproj], name='ch_concat_%s_chconcat' % name)
     return concat
 
+
 # First Downsample
-def Inception7B(data,
-                num_3x3,
-                num_d3x3_red, num_d3x3_1, num_d3x3_2,
-                pool,
-                name):
-    tower_3x3 = Conv(data, num_3x3, kernel=(3, 3), pad=(0, 0), stride=(2, 2), name=('%s_conv' % name))
-    tower_d3x3 = Conv(data, num_d3x3_red, name=('%s_tower' % name), suffix='_conv')
-    tower_d3x3 = Conv(tower_d3x3, num_d3x3_1, kernel=(3, 3), pad=(1, 1), stride=(1, 1), name=('%s_tower' % name), suffix='_conv_1')
-    tower_d3x3 = Conv(tower_d3x3, num_d3x3_2, kernel=(3, 3), pad=(0, 0), stride=(2, 2), name=('%s_tower' % name), suffix='_conv_2')
+def Inception7B_V3(data,
+                basefilter=32, # Base=32
+                num_filters=[], # Length-4
+                pool="max",
+                name=''):
+    
+    assert len(num_filters)==4          
+    num_3x3, num_d3x3_red, num_d3x3_1, num_d3x3_2 = tuple(num_filters)
+    
+    # Branch 1: Conv33
+    tower_3x3 = Conv(data, basefilter*num_3x3, num_group=num_group, kernel=(3, 3), pad=(0, 0), stride=(2, 2), name=('%s_conv' % name))
+    # Branch 2: Conv11-Conv33-Conv33
+    tower_d3x3 = Conv(data, basefilter*num_d3x3_red, num_group=num_group_11, name=('%s_tower' % name), suffix='_conv')
+    tower_d3x3 = Conv(tower_d3x3, basefilter*num_d3x3_1, num_group=num_group, kernel=(3, 3), pad=(1, 1), stride=(1, 1), name=('%s_tower' % name), suffix='_conv_1')
+    tower_d3x3 = Conv(tower_d3x3, basefilter*num_d3x3_2, num_group=num_group, kernel=(3, 3), pad=(0, 0), stride=(2, 2), name=('%s_tower' % name), suffix='_conv_2')
+    # Branch 3: Pool33
     pooling = mx.sym.Pooling(data=data, kernel=(3, 3), stride=(2, 2), pad=(0,0), pool_type="max", name=('max_pool_%s_pool' % name))
     concat = mx.sym.Concat(*[tower_3x3, tower_d3x3, pooling], name='ch_concat_%s_chconcat' % name)
     return concat
 
-def Inception7C(data,
-                num_1x1,
-                num_d7_red, num_d7_1, num_d7_2,
-                num_q7_red, num_q7_1, num_q7_2, num_q7_3, num_q7_4,
-                pool, proj,
-                name):
+
+# Second Stage
+
+def Inception7C_V3(data,
+                basefilter=32, 
+                num_filters=[], # Length-10
+                pool = 'avg',
+                name = ''):
+    
+    assert len(num_filters)==10
+    num_1x1, num_d7_red, num_d7_1, num_d7_2, num_q7_red, \
+        num_q7_1, num_q7_2, num_q7_3, num_q7_4, proj = tuple(num_filters)
+    
     tower_1x1 = Conv(data=data, num_filter=num_1x1, kernel=(1, 1), name=('%s_conv' % name))
     tower_d7 = Conv(data=data, num_filter=num_d7_red, name=('%s_tower' % name), suffix='_conv')
     tower_d7 = Conv(data=tower_d7, num_filter=num_d7_1, kernel=(1, 7), pad=(0, 3), name=('%s_tower' % name), suffix='_conv_1')
@@ -502,11 +521,21 @@ def Inception7C(data,
     concat = mx.sym.Concat(*[tower_1x1, tower_d7, tower_q7, cproj], name='ch_concat_%s_chconcat' % name)
     return concat
 
-def Inception7D(data,
-                num_3x3_red, num_3x3,
-                num_d7_3x3_red, num_d7_1, num_d7_2, num_d7_3x3,
-                pool,
-                name):
+
+# Second Downsample
+
+def Inception7D_V3(data,
+                basefilter=64, 
+                num_filters=[], # Length-6
+                pool='max',
+                name=''):
+    
+    assert len(num_filters)==6
+    
+    num_3x3_red, num_3x3,
+                num_d7_3x3_red, num_d7_1, num_d7_2, num_d7_3x3 = tuple(num_filters)
+    
+    
     tower_3x3 = Conv(data=data, num_filter=num_3x3_red, name=('%s_tower' % name), suffix='_conv')
     tower_3x3 = Conv(data=tower_3x3, num_filter=num_3x3, kernel=(3, 3), pad=(0,0), stride=(2, 2), name=('%s_tower' % name), suffix='_conv_1')
     tower_d7_3x3 = Conv(data=data, num_filter=num_d7_3x3_red, name=('%s_tower_1' % name), suffix='_conv')
@@ -518,12 +547,18 @@ def Inception7D(data,
     concat = mx.sym.Concat(*[tower_3x3, tower_d7_3x3, pooling], name='ch_concat_%s_chconcat' % name)
     return concat
 
-def Inception7E(data,
-                num_1x1,
-                num_d3_red, num_d3_1, num_d3_2,
-                num_3x3_d3_red, num_3x3, num_3x3_d3_1, num_3x3_d3_2,
-                pool, proj,
-                name):
+def Inception7E_V3(data,
+                basefilter=64,
+                num_filters=[], # Length-9
+                pool='max', 
+                name=''):
+    
+    assert len(num_filters)==9
+    
+    num_1x1, num_d3_red, num_d3_1, num_d3_2,
+                num_3x3_d3_red, num_3x3, num_3x3_d3_1, num_3x3_d3_2, proj = tuple(num_filters)
+    
+    
     tower_1x1 = Conv(data=data, num_filter=num_1x1, kernel=(1, 1), name=('%s_conv' % name))
     tower_d3 = Conv(data=data, num_filter=num_d3_red, name=('%s_tower' % name), suffix='_conv')
     tower_d3_a = Conv(data=tower_d3, num_filter=num_d3_1, kernel=(1, 3), pad=(0, 1), name=('%s_tower' % name), suffix='_mixed_conv')
