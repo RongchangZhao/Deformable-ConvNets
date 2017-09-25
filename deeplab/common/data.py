@@ -155,7 +155,7 @@ def get_rec_iter(args, kv=None):
     '''
     train = mx.img.ImageIter(
         label_width         = 1,
-        path_root    =     '/data1/deepinsight/ILSVRC2012/ILSVRC/Data/CLS-LOC/train/', 
+        path_root    =     '/data1/deepinsight/aichallenger/scene/ai_challenger_scene_train_20170904/scene_train_images_20170904', 
         path_imglist      = args.data_train,
         #path_imgrec      = 'data/train.rec',
         #path_imgidx      = 'data/train.idx',
@@ -176,7 +176,7 @@ def get_rec_iter(args, kv=None):
     #    return (train, None)
     val = mx.img.ImageIter(
         label_width         = 1,
-        path_root    = '/data1/deepinsight/ILSVRC2012/ILSVRC/Data/CLS-LOC/val/', 
+        path_root           = '/data1/deepinsight/aichallenger/scene/ai_challenger_scene_validation_20170908/scene_validation_images_20170908', 
         path_imglist        = args.data_val,
         #path_imgrec      = 'data/val.rec',
         #path_imgidx     = 'data/val.idx',
