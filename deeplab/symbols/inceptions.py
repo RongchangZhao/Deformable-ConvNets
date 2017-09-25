@@ -455,7 +455,7 @@ def Inception7A_V3(data,
                    num_group=1, num_group_11=1,
                    pool='avg', name=''):
     assert len(num_filters)==7
-    num_1x1, num_3x3_red, num_3x3_1, num_3x3_2, num_5x5_red, num_5x5, proj = num_filters
+    num_1x1, num_3x3_red, num_3x3_1, num_3x3_2, num_5x5_red, num_5x5, proj = tuple( num_filters )
     # Branch 1 : Conv11
     tower_1x1 = Conv(data, basefilter*num_1x1, num_group=num_group_11,  name=('%s_conv' % name))
     # Branch 2 : Conv11-Conv55
@@ -506,17 +506,21 @@ def Inception7C_V3(data,
     num_1x1, num_d7_red, num_d7_1, num_d7_2, num_q7_red, \
         num_q7_1, num_q7_2, num_q7_3, num_q7_4, proj = tuple(num_filters)
     
-    tower_1x1 = Conv(data=data, num_filter=num_1x1, kernel=(1, 1), name=('%s_conv' % name))
-    tower_d7 = Conv(data=data, num_filter=num_d7_red, name=('%s_tower' % name), suffix='_conv')
-    tower_d7 = Conv(data=tower_d7, num_filter=num_d7_1, kernel=(1, 7), pad=(0, 3), name=('%s_tower' % name), suffix='_conv_1')
-    tower_d7 = Conv(data=tower_d7, num_filter=num_d7_2, kernel=(7, 1), pad=(3, 0), name=('%s_tower' % name), suffix='_conv_2')
-    tower_q7 = Conv(data=data, num_filter=num_q7_red, name=('%s_tower_1' % name), suffix='_conv')
-    tower_q7 = Conv(data=tower_q7, num_filter=num_q7_1, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_1')
-    tower_q7 = Conv(data=tower_q7, num_filter=num_q7_2, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_2')
-    tower_q7 = Conv(data=tower_q7, num_filter=num_q7_3, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_3')
-    tower_q7 = Conv(data=tower_q7, num_filter=num_q7_4, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_4')
+    # Branch 1 : Conv11
+    tower_1x1 = Conv(data=data, num_filter=basefilter*num_1x1, kernel=(1, 1), name=('%s_conv' % name))
+    # Branch 2: Conv11-Conv17-Conv71
+    tower_d7 = Conv(data=data, num_filter=basefilter*num_d7_red, name=('%s_tower' % name), suffix='_conv')
+    tower_d7 = Conv(data=tower_d7, num_filter=basefilter*num_d7_1, num_group=num_group, kernel=(1, 7), pad=(0, 3), name=('%s_tower' % name), suffix='_conv_1')
+    tower_d7 = Conv(data=tower_d7, num_filter=basefilter*num_d7_2, num_group=num_group, kernel=(7, 1), pad=(3, 0), name=('%s_tower' % name), suffix='_conv_2')
+    # Branch 3:Conv11-Conv17-Conv71-Conv17-Conv71
+    tower_q7 = Conv(data=data, num_filter=basefilter*num_q7_red, num_group=num_group_11, name=('%s_tower_1' % name), suffix='_conv')
+    tower_q7 = Conv(data=tower_q7, num_filter=basefilter*num_q7_1, num_group=num_group, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_1')
+    tower_q7 = Conv(data=tower_q7, num_filter=basefilter*num_q7_2, num_group=num_group, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_2')
+    tower_q7 = Conv(data=tower_q7, num_filter=basefilter*num_q7_3, num_group=num_group, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_3')
+    tower_q7 = Conv(data=tower_q7, num_filter=basefilter*num_q7_4, num_group=num_group, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_4')
+    # Branch4: Pooling-Conv11
     pooling = mx.sym.Pooling(data=data, kernel=(3, 3), stride=(1, 1), pad=(1, 1), pool_type=pool, name=('%s_pool_%s_pool' % (pool, name)))
-    cproj = Conv(data=pooling, num_filter=proj, kernel=(1, 1), name=('%s_tower_2' %  name), suffix='_conv')
+    cproj = Conv(data=pooling, num_filter=basefilter*proj, num_group=num_group_11, kernel=(1, 1), name=('%s_tower_2' %  name), suffix='_conv')
     # concat
     concat = mx.sym.Concat(*[tower_1x1, tower_d7, tower_q7, cproj], name='ch_concat_%s_chconcat' % name)
     return concat
@@ -535,17 +539,20 @@ def Inception7D_V3(data,
     num_3x3_red, num_3x3,
                 num_d7_3x3_red, num_d7_1, num_d7_2, num_d7_3x3 = tuple(num_filters)
     
-    
-    tower_3x3 = Conv(data=data, num_filter=num_3x3_red, name=('%s_tower' % name), suffix='_conv')
-    tower_3x3 = Conv(data=tower_3x3, num_filter=num_3x3, kernel=(3, 3), pad=(0,0), stride=(2, 2), name=('%s_tower' % name), suffix='_conv_1')
-    tower_d7_3x3 = Conv(data=data, num_filter=num_d7_3x3_red, name=('%s_tower_1' % name), suffix='_conv')
-    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=num_d7_1, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_1')
-    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=num_d7_2, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_2')
-    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=num_d7_3x3, kernel=(3, 3), stride=(2, 2), name=('%s_tower_1' % name), suffix='_conv_3')
+    # Branch 1: Conv11-Conv33
+    tower_3x3 = Conv(data=data, num_filter=basefilter*num_3x3_red, num_group=num_group_11, name=('%s_tower' % name), suffix='_conv')
+    tower_3x3 = Conv(data=tower_3x3, num_filter=basefilter*num_3x3, num_group=num_group, kernel=(3, 3), pad=(0,0), stride=(2, 2), name=('%s_tower' % name), suffix='_conv_1')
+    # Branch 2: Conv11-Conv17-Conv71-Conv33
+    tower_d7_3x3 = Conv(data=data, num_filter=basefilter*num_d7_3x3_red, num_group=num_group_11,  name=('%s_tower_1' % name), suffix='_conv')
+    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=basefilter*num_d7_1, num_group=num_group, kernel=(1, 7), pad=(0, 3), name=('%s_tower_1' % name), suffix='_conv_1')
+    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=basefilter*num_d7_2, num_group=num_group, kernel=(7, 1), pad=(3, 0), name=('%s_tower_1' % name), suffix='_conv_2')
+    tower_d7_3x3 = Conv(data=tower_d7_3x3, num_filter=basefilter*num_d7_3x3, num_group=num_group, kernel=(3, 3), stride=(2, 2), name=('%s_tower_1' % name), suffix='_conv_3')
+    # Branch 3: Pool33
     pooling = mx.sym.Pooling(data=data, kernel=(3, 3), stride=(2, 2), pool_type=pool, name=('%s_pool_%s_pool' % (pool, name)))
     # concat
     concat = mx.sym.Concat(*[tower_3x3, tower_d7_3x3, pooling], name='ch_concat_%s_chconcat' % name)
     return concat
+
 
 def Inception7E_V3(data,
                 basefilter=64,
@@ -559,83 +566,102 @@ def Inception7E_V3(data,
                 num_3x3_d3_red, num_3x3, num_3x3_d3_1, num_3x3_d3_2, proj = tuple(num_filters)
     
     
-    tower_1x1 = Conv(data=data, num_filter=num_1x1, kernel=(1, 1), name=('%s_conv' % name))
-    tower_d3 = Conv(data=data, num_filter=num_d3_red, name=('%s_tower' % name), suffix='_conv')
-    tower_d3_a = Conv(data=tower_d3, num_filter=num_d3_1, kernel=(1, 3), pad=(0, 1), name=('%s_tower' % name), suffix='_mixed_conv')
-    tower_d3_b = Conv(data=tower_d3, num_filter=num_d3_2, kernel=(3, 1), pad=(1, 0), name=('%s_tower' % name), suffix='_mixed_conv_1')
-    tower_3x3_d3 = Conv(data=data, num_filter=num_3x3_d3_red, name=('%s_tower_1' % name), suffix='_conv')
-    tower_3x3_d3 = Conv(data=tower_3x3_d3, num_filter=num_3x3, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_1')
-    tower_3x3_d3_a = Conv(data=tower_3x3_d3, num_filter=num_3x3_d3_1, kernel=(1, 3), pad=(0, 1), name=('%s_tower_1' % name), suffix='_mixed_conv')
-    tower_3x3_d3_b = Conv(data=tower_3x3_d3, num_filter=num_3x3_d3_2, kernel=(3, 1), pad=(1, 0), name=('%s_tower_1' % name), suffix='_mixed_conv_1')
+    # Branch 1: Conv11
+    tower_1x1 = Conv(data=data, num_filter=basefilter*num_1x1, num_group=num_group_11, kernel=(1, 1), name=('%s_conv' % name))
+    # Branch 2: Conv11-Conv13-Conv31
+    tower_d3 = Conv(data=data, num_filter=basefilter*num_d3_red, num_group=num_group_11, name=('%s_tower' % name), suffix='_conv')
+    tower_d3_a = Conv(data=tower_d3, num_filter=basefilter*num_d3_1, num_group=num_group, kernel=(1, 3), pad=(0, 1), name=('%s_tower' % name), suffix='_mixed_conv')
+    tower_d3_b = Conv(data=tower_d3, num_filter=basefilter*num_d3_2, num_group=num_group, kernel=(3, 1), pad=(1, 0), name=('%s_tower' % name), suffix='_mixed_conv_1')
+    # Branch 3: Conv11-Conv33-Conv13-Conv31
+    tower_3x3_d3 = Conv(data=data, num_filter=basefilter*num_3x3_d3_red, num_group=num_group_11, name=('%s_tower_1' % name), suffix='_conv')
+    tower_3x3_d3 = Conv(data=tower_3x3_d3, num_filter=basefilter*num_3x3, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=('%s_tower_1' % name), suffix='_conv_1')
+    tower_3x3_d3_a = Conv(data=tower_3x3_d3, num_filter=basefilter*num_3x3_d3_1, num_group=num_group, kernel=(1, 3), pad=(0, 1), name=('%s_tower_1' % name), suffix='_mixed_conv')
+    tower_3x3_d3_b = Conv(data=tower_3x3_d3, num_filter=basefilter*num_3x3_d3_2, num_group=num_group, kernel=(3, 1), pad=(1, 0), name=('%s_tower_1' % name), suffix='_mixed_conv_1')
+    # Branch 4: Pool33-Conv11
     pooling = mx.sym.Pooling(data=data, kernel=(3, 3), stride=(1, 1), pad=(1, 1), pool_type=pool, name=('%s_pool_%s_pool' % (pool, name)))
-    cproj = Conv(data=pooling, num_filter=proj, kernel=(1, 1), name=('%s_tower_2' %  name), suffix='_conv')
+    cproj = Conv(data=pooling, num_filter=basefilter*proj, kernel=(1, 1), num_group=num_group_11, name=('%s_tower_2' %  name), suffix='_conv')
     # concat
     concat = mx.sym.Concat(*[tower_1x1, tower_d3_a, tower_d3_b, tower_3x3_d3_a, tower_3x3_d3_b, cproj], name='ch_concat_%s_chconcat' % name)
     return concat
 
 
 
-def get_symbol_V3(num_classes=1000, dtype='float32', **kwargs):
+def get_symbol_V3(num_classes=1000, 
+                  basefilter=16, num_group=1, num_group_11=1, num_group_stem=1,
+                  dtype='float32', **kwargs):
     data = mx.sym.Variable(name="data")
     if dtype == 'float32':
         data = mx.sym.identity(data=data, name='id')
     else:
         if dtype == 'float16':
             data = mx.sym.Cast(data=data, dtype=np.float16)
-    # stage 1
-    conv = Conv(data, 32, kernel=(3, 3), stride=(2, 2), name="conv")
-    conv_1 = Conv(conv, 32, kernel=(3, 3), name="conv_1")
-    conv_2 = Conv(conv_1, 64, kernel=(3, 3), pad=(1, 1), name="conv_2")
+    # Stem Stage 1
+    conv = Conv(data, basefilter*2, num_group=num_group_stem, kernel=(3, 3), stride=(2, 2), name="conv")
+    conv_1 = Conv(conv, basefilter*2, num_group=num_group_stem,  kernel=(3, 3), name="conv_1")
+    conv_2 = Conv(conv_1, basefilter*4, num_group=num_group_stem, kernel=(3, 3), pad=(1, 1), name="conv_2")
     pool = mx.sym.Pooling(data=conv_2, kernel=(3, 3), stride=(2, 2), pool_type="max", name="pool")
-    # stage 2
-    conv_3 = Conv(pool, 80, kernel=(1, 1), name="conv_3")
-    conv_4 = Conv(conv_3, 192, kernel=(3, 3), name="conv_4")
+    # Stem Stage 2
+    conv_3 = Conv(pool, basefilter*5, num_group=num_group_11, kernel=(1, 1), name="conv_3")
+    conv_4 = Conv(conv_3, basefilter*12, num_group=num_group_stem, kernel=(3, 3), name="conv_4")
     pool1 = mx.sym.Pooling(data=conv_4, kernel=(3, 3), stride=(2, 2), pool_type="max", name="pool1")
-    # stage 3
-    in3a = Inception7A(pool1, 64,
-                       64, 96, 96,
-                       48, 64,
-                       "avg", 32, "mixed")
-    in3b = Inception7A(in3a, 64,
-                       64, 96, 96,
-                       48, 64,
-                       "avg", 64, "mixed_1")
-    in3c = Inception7A(in3b, 64,
-                       64, 96, 96,
-                       48, 64,
-                       "avg", 64, "mixed_2")
-    in3d = Inception7B(in3c, 384,
-                       64, 96, 96,
+    # Main Stage 1
+    in3a = Inception7A(pool1, 
+                       basefilter=basefilter*1,
+                       num_filters=[4,4,6,6,3,4,2],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed")
+    in3b = Inception7A(in3a, 
+                       basefilter=basefilter*1,
+                       num_filters=[4,4,6,6,3,4,2],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_1")
+    in3c = Inception7A(in3b,
+                       basefilter=basefilter*1,
+                       num_filters=[4,4,6,6,3,4,2],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_2")
+    in3d = Inception7B(in3c,
+                       basefilter=basefilter*2,
+                       num_filters=[12,2,3,3],
+                       num_group=num_group, num_group_11=num_group_11,
                        "max", "mixed_3")
-    # stage 4
-    in4a = Inception7C(in3d, 192,
-                       128, 128, 192,
-                       128, 128, 128, 128, 192,
-                       "avg", 192, "mixed_4")
-    in4b = Inception7C(in4a, 192,
-                       160, 160, 192,
-                       160, 160, 160, 160, 192,
-                       "avg", 192, "mixed_5")
-    in4c = Inception7C(in4b, 192,
-                       160, 160, 192,
-                       160, 160, 160, 160, 192,
-                       "avg", 192, "mixed_6")
-    in4d = Inception7C(in4c, 192,
-                       192, 192, 192,
-                       192, 192, 192, 192, 192,
-                       "avg", 192, "mixed_7")
-    in4e = Inception7D(in4d, 192, 320,
-                       192, 192, 192, 192,
+    # Main Stage2
+    in4a = Inception7C(in3d, 
+                       basefilter=basefilter*2,
+                       num_filters=[6,4,4,6,4,4,4,4,6,6],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_4")
+    in4b = Inception7C(in4a, 
+                       basefilter=basefilter*2,
+                       num_filters=[6,5,5,6,5,5,5,5,6,6],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_5")
+    in4c = Inception7C(in4b, 
+                       basefilter=basefilter*2,
+                       num_filters=[6,5,5,6,5,5,5,5,6,6],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_6")
+    in4d = Inception7C(in4c,
+                       basefilter=basefilter*2,
+                       num_filters=[6,6,6,6,6,6,6,6,6,6],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_7")
+    in4e = Inception7D(in4d, 
+                       basefilter=basefilter*4,
+                       num_filters=[3,5,3,3,3,3],
+                       num_group=num_group, num_group_11=num_group_11,
                        "max", "mixed_8")
-    # stage 5
-    in5a = Inception7E(in4e, 320,
-                       384, 384, 384,
-                       448, 384, 384, 384,
-                       "avg", 192, "mixed_9")
-    in5b = Inception7E(in5a, 320,
-                       384, 384, 384,
-                       448, 384, 384, 384,
-                       "max", 192, "mixed_10")
+    # Main Stage3
+    in5a = Inception7E(in4e,
+                       basefilter=basefilter*4,
+                       num_filters=[5,6,6,6,7,6,6,6,3],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "avg", "mixed_9")
+    in5b = Inception7E(in5a, 
+                       basefilter=basefilter*4,
+                       num_filters=[5,6,6,6,7,6,6,6,3],
+                       num_group=num_group, num_group_11=num_group_11,
+                       "max", "mixed_10")
     # pool
     pool = mx.sym.Pooling(data=in5b, kernel=(8, 8), stride=(1, 1), pool_type="avg", name="global_pool")
     flatten = mx.sym.Flatten(data=pool, name="flatten")
