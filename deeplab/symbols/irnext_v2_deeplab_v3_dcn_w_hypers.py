@@ -21,6 +21,7 @@
 
 import cPickle
 import mxnet as mx
+from op.lsoftmax import LSoftmaxOp
 # from utils.symbol import Symbol
 
 
@@ -29,7 +30,8 @@ import mxnet as mx
 # Todo 1,2,4
 
 def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
-                 num_group=32, dilation=1, irv2 = False, deform=1, sqex=1, ratt=0, bn_mom=0.9, unitbatchnorm=True, workspace=256, memonger=False):
+                 num_group=32, dilation=1, irv2 = False, deform=1, sqex=1, ratt=0, 
+                 bn_mom=0.9, unitbatchnorm=True, workspace=256, memonger=False):
     
     """
     Return Unit symbol for building ResNeXt/simplified Xception block
@@ -177,11 +179,11 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
         else:
             pool_se = mx.symbol.Pooling(data=conv3, cudnn_off=True, global_pool=True, kernel=(7, 7), pool_type='avg', name=name + '_se_pool')
             flat = mx.symbol.Flatten(data=pool_se)
-            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=(num_filter/expansion/4), name=name + '_se_fc1',
+            se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=int(num_filter/expansion/4), name=name + '_se_fc1',
                                              attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
             # se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
             se_relu = se_fc1
-            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=num_filter, name=name + '_se_fc2',
+            se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=int(num_filter), name=name + '_se_fc2',
                                              attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
             se_act = mx.sym.Activation(se_fc2, act_type="sigmoid")
             se_reshape = mx.symbol.Reshape(se_act, shape=(-1, num_filter, 1, 1), name="se_reshape")
@@ -284,7 +286,9 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
-               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, block567='',
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, 
+               lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
+           block567='',
            taskmode='CLS',
            seg_stride_list = [1,2,2,1], decoder=False,
            bn_mom=0.9, workspace=256, dtype='float32', memonger=False):
@@ -425,9 +429,8 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         pool1 = mx.sym.Pooling(data=relu1, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
         flat = mx.sym.Flatten(data=pool1)
         fc1 = mx.sym.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
-        if dtype == 'float16':
-            fc1 = mx.sym.Cast(data=fc1, dtype=np.float32)
-        return mx.sym.SoftmaxOutput(data=fc1, name='softmax')
+        
+        return fc1
     
     
     elif taskmode == 'SEG':
@@ -477,7 +480,9 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
 
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567='',  conv_workspace=256,
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567='', 
+               lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
+               conv_workspace=256,
                taskmode='CLS', decoder=False, seg_stride_mode='', dtype='float32', **kwargs):
     """
     Adapted from https://github.com/tornadomeet/ResNet/blob/master/train_resnet.py
@@ -595,6 +600,10 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
                   sqex        = sqex, 
                   ratt        = ratt,
                   block567    = block567,
+                  lmar        = lmar, 
+                  lmarbeta    = lmarbeta,
+                  lmarbetamin = lmarbetamin,
+                  lmarscale   = lmarscale,
                   taskmode    = taskmode,
                   seg_stride_list = seg_stride_list,
                   decoder     = decoder,
@@ -612,7 +621,9 @@ class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
-                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, block567='' , 
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0,
+                 lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
+                 block567='' , 
                  aspp = 0, usemax =0,
                  conv_workspace=256,
                 taskmode='CLS', seg_stride_mode='', deeplabversion=2 , dtype='float32', **kwargs):
@@ -634,12 +645,17 @@ class irnext_deeplab_dcn():
         self.deform = deform
         self.sqex = sqex
         self.ratt = ratt
+        self.lmar = lmar
+        self.lmarbeta = lmarbeta
+        self.lmarbetamin = lmarbetamin
+        self.lmarscale = lmarscale
         self.block567 = block567
         self.usemax = usemax
         self.taskmode = taskmode
         self.seg_stride_mode = seg_stride_mode
         self.deeplabversion = deeplabversion
         self.atrouslist = [] if aspp==0 else [3,6,12,18,24] #6,12,18
+        self.dtype=dtype
         # (3, 4, 23, 3) # use for 101
         # filter_list = [256, 512, 1024, 2048]
         
@@ -647,8 +663,9 @@ class irnext_deeplab_dcn():
     def get_cls_symbol(self, **kwargs):
         
         data = mx.symbol.Variable(name="data")
+        label = mx.symbol.Variable(name="softmax_label")
         
-        return get_conv(  data,
+        fc1 =  get_conv(  data,
                           self.num_classes,
                           self.num_layers,
                           self.outfeature,
@@ -661,9 +678,25 @@ class irnext_deeplab_dcn():
                           deform=self.deform, 
                           sqex=self.sqex,
                           ratt=self.ratt,
+                          lmar=self.lmar,
+                          lmarbeta=self.lmarbeta,
+                          lmarbetamin=self.lmarbetamin,
+                          lmarscale=self.lmarscale,
                           conv_workspace=256,
                           taskmode='CLS', 
                           seg_stride_mode='', dtype='float32', **kwargs)
+    
+    
+        
+        if self.lmar>0:
+            fc1 = mx.sym.Custom(data=fc1, label=label,
+                                num_hidden=self.num_classes,
+                                beta=self.lmarbeta, margin=self.lmar, scale=self.lmarscale,
+                                beta_min=self.lmarbetamin, op_type='LSoftmax')
+        
+        if self.dtype == 'float16':
+            fc1 = mx.sym.Cast(data=fc1, dtype=np.float32)
+        return mx.sym.SoftmaxOutput(data=fc1, label=label, name='softmax')
         
     def get_seg_symbol(self, **kwargs):
         
