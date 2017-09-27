@@ -39,8 +39,8 @@ if __name__ == '__main__':
         # data
         num_classes      = 80,
         num_examples     = 53878,
-        image_shape      = '3,224,224',
-        lastout          = 7,
+        image_shape      = '3,320,320',
+        lastout          = 10,
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
