@@ -88,11 +88,11 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                         else:
                             irnext_cls_auxs[k] = mx.random.normal(0, 0.01, shape=v)
    
-    data_shape=(1,3,224,224)
+    data_shape=(32,3,224,224)
     arg_names = irnext_cls_symbol.list_arguments()
     print arg_names
     print "Step"
-    arg_shapes, _, _ = irnext_cls_symbol.infer_shape(data=data_shape)
+    arg_shapes, _, _ = irnext_cls_symbol.infer_shape(**data_shape_dict) # data=data_shape
     print arg_shapes
     rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)
             if x[0] in ['score_weight', 'score_bias', 'score_pool4_weight', 'score_pool4_bias', \

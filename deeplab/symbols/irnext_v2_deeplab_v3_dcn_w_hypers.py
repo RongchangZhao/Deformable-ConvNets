@@ -689,14 +689,21 @@ class irnext_deeplab_dcn():
     
         
         if self.lmar>0:
+            fc4 = mx.sym.LSoftmax(data=fc1, label=label, num_hidden=self.num_classes, #
+                                  beta=self.lmarbeta, margin=self.lmar, scale=self.lmarscale,
+                                  beta_min=self.lmarbetamin, verbose=True)
+            
+            return mx.sym.SoftmaxOutput(data=fc4, label=label)
+            '''
             fc1 = mx.sym.Custom(data=fc1, label=label,
                                 num_hidden=self.num_classes,
                                 beta=self.lmarbeta, margin=self.lmar, scale=self.lmarscale,
                                 beta_min=self.lmarbetamin, op_type='LSoftmax')
+                                '''
         
         if self.dtype == 'float16':
             fc1 = mx.sym.Cast(data=fc1, dtype=np.float32)
-        return mx.sym.SoftmaxOutput(data=fc1, label=label, name='softmax')
+        return mx.sym.SoftmaxOutput(data=fc1, label=label, name='softmax') #
         
     def get_seg_symbol(self, **kwargs):
         

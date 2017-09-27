@@ -39,14 +39,14 @@ if __name__ == '__main__':
         # data
         num_classes      = 80,
         num_examples     = 53878,
-        image_shape      = '3,320,320',
-        lastout          = 10,
+        image_shape      = '3,224,224',
+        lastout          = 7,
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
         num_epochs       = 100,
         lr               = 0.01,
-        lr_step_epochs   = '20,40',
+        lr_step_epochs   = '10,20',
         dtype            = 'float32',
         
         # load
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         
         
     data_shape_dict = {'data': (args.batch_size, 3, 224, 224), 
-                           'softmax_label': (args.batch_size,)}
+                       'softmax_label': (args.batch_size,)}
 
         
     deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
