@@ -44,12 +44,12 @@ if __name__ == '__main__':
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
-        num_epochs       = 100,
-        lr               = 0.01,
-        lr_step_epochs   = '10,20',
+        num_epochs       = 50,
+        lr               = 0.003,
+        lr_step_epochs   = '15,25',
         dtype            = 'float32',
         
-        # load
+        # load , please tune
         load_ft_epoch       = 0,
         model_ft_prefix     = 'CLS-ResNeXt-152L64X1D4XP'
         
@@ -73,9 +73,11 @@ if __name__ == '__main__':
     data_shape_dict = {'data': (args.batch_size, 3, 224, 224), 
                        'softmax_label': (args.batch_size,)}
 
-        
-    deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
+    if args.model_ft_prefix[0:3] == 'CLS':
+        deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
+    else:
+        args.lr_step_epochs = '5,10'
     
     # train
     
