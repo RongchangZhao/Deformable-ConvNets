@@ -3,6 +3,7 @@
 import os
 import codecs
 import json
+import glob
 
 DATA_ROOT='/data1/deepinsight/aichallenger/scene'
 
@@ -32,7 +33,9 @@ DATA_VAL_SRC=DATA_VAL_ROOT+'/scene_validation_images_20170908'
 DATA_VAL_JSON=DATA_VAL_ROOT+'/scene_validation_annotations_20170908.json'
 
 
+DATA_TEST_A_ROOT=DATA_ROOT+'/ai_challenger_scene_test_a_20170922/scene_test_a_images_20170922'
 
+'''
 with codecs.open(DATA_TRAIN_JSON,encoding='utf-8') as f:
     trainList = json.load(f)
 
@@ -69,10 +72,15 @@ with codecs.open('./trainval.lst','w',encoding='utf-8') as f:
             print idx
         i = int(d['label_id'])
         f.write('{0}\t{1}\t{2}\n'.format(idx+counter, i, d['image_id']))
-        
+        '''
             
 
-    
+with codecs.open('./test_a.lst','w',encoding='utf-8') as f:
+    for idx, jpgfilename in enumerate(glob.glob(DATA_TEST_A_ROOT+'/*.jpg')):
+        if idx%100==0:
+            print idx
+        jpgfilename = jpgfilename.split('/')[-1]
+        f.write('{0}\t{1}\t{2}\n'.format(idx, 99, jpgfilename))
     
     
     

@@ -45,13 +45,13 @@ if __name__ == '__main__':
                               # 256.0/x, e.g. 0.533 for 480
         # train
         num_epochs       = 50,
-        lr               = 0.003,
+        lr               = 0.0003,
         lr_step_epochs   = '15,25',
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 0,
-        model_ft_prefix     = 'CLS-ResNeXt-152L64X1D4XP'
+        load_ft_epoch       = 22,
+        model_ft_prefix     = 'sft320deformsqex00003_966'
         
     )
     args = parser.parse_args()
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
     else:
-        args.lr_step_epochs = '5,10'
+        args.lr_step_epochs = '10,20'
     
     # train
     
