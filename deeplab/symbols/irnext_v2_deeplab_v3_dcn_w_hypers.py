@@ -180,11 +180,11 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
             pool_se = mx.symbol.Pooling(data=conv3, cudnn_off=True, global_pool=True, kernel=(7, 7), pool_type='avg', name=name + '_se_pool')
             flat = mx.symbol.Flatten(data=pool_se)
             se_fc1 = mx.symbol.FullyConnected(data=flat, num_hidden=int(num_filter/expansion/4), name=name + '_se_fc1',
-                                             attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
+                                             attr={'lr_mult': '1.0'} ) #, lr_mult=0.25)
             # se_relu = mx.sym.Activation(data=se_fc1, act_type='relu')
             se_relu = se_fc1
             se_fc2 = mx.symbol.FullyConnected(data=se_relu, num_hidden=int(num_filter), name=name + '_se_fc2',
-                                             attr={'lr_mult': '0.25'} ) #, lr_mult=0.25)
+                                             attr={'lr_mult': '1.0'} ) #, lr_mult=0.25)
             se_act = mx.sym.Activation(se_fc2, act_type="sigmoid")
             se_reshape = mx.symbol.Reshape(se_act, shape=(-1, num_filter, 1, 1), name="se_reshape")
             se_scale = mx.sym.broadcast_mul(conv3, se_reshape)
@@ -560,6 +560,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
             units = [3, 6, 12, 3]
         elif num_layers == 101:
             units = [3, 4, 23, 3]
+        elif num_layers == 104:
+            units = [3, 6, 22, 3]
         elif num_layers == 152:
             units = [3, 8, 36, 3]
         elif num_layers == 200:

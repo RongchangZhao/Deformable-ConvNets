@@ -30,7 +30,7 @@ if __name__ == '__main__':
         irv2             = False, 
         deform           = 1,
         sqex             = 1,
-        ratt             = 0,
+        ratt             = 1,
         block567         = 0,
         lmar             = 0,
         lmarbeta         = 1,
@@ -50,8 +50,8 @@ if __name__ == '__main__':
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 22,
-        model_ft_prefix     = 'sft320deformsqex00003_966'
+        load_ft_epoch       = 0,
+        model_ft_prefix     = 'CLS-ResNeXt-152L64X1D4XP'
         
     )
     args = parser.parse_args()
