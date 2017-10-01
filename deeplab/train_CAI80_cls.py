@@ -30,7 +30,7 @@ if __name__ == '__main__':
         irv2             = False, 
         deform           = 1,
         sqex             = 1,
-        ratt             = 1,
+        ratt             = 0,
         block567         = 0,
         lmar             = 0,
         lmarbeta         = 1,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         # train
         num_epochs       = 50,
         lr               = 0.0003,
-        lr_step_epochs   = '15,25',
+        lr_step_epochs   = '25,35',
         dtype            = 'float32',
         
         # load , please tune

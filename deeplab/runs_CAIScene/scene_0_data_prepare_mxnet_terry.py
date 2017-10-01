@@ -47,8 +47,13 @@ mappingList = [2, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 0, 1, 2, 2, 1, 0, 1, 0, 1,
        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 2, 0, 2,
        1, 2, 2, 2, 2, 2, 1, 2, 2, 0, 2]
 
+for part in range(3):
+    partindex = [k for k,v in zip(range(80),mappingList) if v==part]
+    exec('d_{0} = dict(zip(partindex, range(len(partindex))))'.format(part))
+    exec('print d_{0}'.format(part))
+    
 
-
+    
 for part in range(3):
     with codecs.open('./train_{0}.lst'.format(part),'w',encoding='utf-8') as f:
         counter=0
@@ -58,7 +63,9 @@ for part in range(3):
             i = int(d['label_id'])
             if mappingList[i] != part:
                 continue
-            f.write('{0}\t{1}\t{2}\n'.format(counter, i, d['image_id']))
+            s = ''
+            exec('s = d_{idx}[i]'.format(idx=part))
+            f.write('{0}\t{1}\t{2}\n'.format(counter, s , d['image_id']))
             counter+=1
 
         
@@ -70,7 +77,9 @@ for part in range(3):
             i = int(d['label_id'])
             if mappingList[i] != part:
                 continue
-            f.write('{0}\t{1}\t{2}\n'.format(counter, i, d['image_id']))
+            s = ''
+            exec('s = d_{idx}[i]'.format(idx=part))
+            f.write('{0}\t{1}\t{2}\n'.format(counter, s , d['image_id']))
             counter+=1
         
         
@@ -82,7 +91,9 @@ for part in range(3):
             i = int(d['label_id'])
             if mappingList[i] != part:
                 continue
-            f.write('{0}\t{1}\t{2}\n'.format(counter, i, d['image_id']))
+            s = ''
+            exec('s = d_{idx}[i]'.format(idx=part))
+            f.write('{0}\t{1}\t{2}\n'.format(counter, s , d['image_id']))
             counter+=1
         for idx,d in enumerate(valList):
             if idx%100==0:
@@ -90,7 +101,9 @@ for part in range(3):
             i = int(d['label_id'])
             if mappingList[i] != part:
                 continue
-            f.write('{0}\t{1}\t{2}\n'.format(counter, i, d['image_id']))
+            s = ''
+            exec('s = d_{idx}[i]'.format(idx=part))
+            f.write('{0}\t{1}\t{2}\n'.format(counter, s , d['image_id']))
             counter+=1
         
 

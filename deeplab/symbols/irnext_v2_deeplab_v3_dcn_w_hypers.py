@@ -194,9 +194,11 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
             pass
         else:
             ratt1 = mx.symbol.Convolution(data=out, num_filter=num_filter, kernel=(1,1), stride=(1,1), no_bias=True, \
-                                             workspace=workspace, name=name+'_poolra1')
+                                             workspace=workspace, name=name+'_poolra1',
+                                             attr={'lr_mult': '0.25'})
             ratt2 = mx.symbol.Convolution(data=ratt1, num_filter=1, kernel=(1,1), stride=(1,1), no_bias=True, \
-                                              workspace=workspace, name=name+'_poolra2')
+                                              workspace=workspace, name=name+'_poolra2',
+                                             attr={'lr_mult': '0.25'})
             ratt = mx.symbol.Activation(ratt2, act_type="sigmoid")
             ratt_scale = mx.sym.broadcast_mul(out, ratt)
             out = ratt_scale
