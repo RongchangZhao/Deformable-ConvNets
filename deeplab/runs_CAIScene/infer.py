@@ -145,7 +145,24 @@ def image_preprocess(img_full_path):
     img = np.swapaxes(img, 0, 2)
     img = np.swapaxes(img, 1, 2)  # change to CHW
     return img
-  
+
+def image_preprocess2(img_full_path):    
+    _size = args.size.split(",")    
+    img_sz = int(_size[1])
+    crop_sz = int(_size[0])
+    img = cv2.cvtColor(cv2.imread(img_full_path), cv2.COLOR_BGR2RGB)
+    img = np.float32(img)
+    nd_img = nd.array(img)
+    if img_sz>0:
+        nd_img = mx.image.resize_short(nd_img, img_sz)                                                                      
+    nd_img = mx.image.random_size_crop(nd_img, (crop_sz, crop_sz), 0.8, (3.0/4, 4.0/3))[0]     
+    img = nd_img.asnumpy()                         
+    img = np.swapaxes(img, 0, 2)      
+    img = np.swapaxes(img, 1, 2)  # change to CHW      
+    #print(img.shape)                      
+    return img
+
+
 def val(X, imgs):
     top1=0
     top3=0

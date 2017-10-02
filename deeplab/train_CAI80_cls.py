@@ -33,9 +33,9 @@ if __name__ == '__main__':
         ratt             = 0,
         block567         = 0,
         lmar             = 0,
-        lmarbeta         = 1,
+        lmarbeta         = 1000,
         lmarbetamin      = 0,
-        lmarscale        = 1,
+        lmarscale        = 0.9997,
         # data
         num_classes      = 80,
         num_examples     = 53878,
@@ -46,12 +46,12 @@ if __name__ == '__main__':
         # train
         num_epochs       = 50,
         lr               = 0.0003,
-        lr_step_epochs   = '25,35',
+        lr_step_epochs   = '15,25',
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 0,
-        model_ft_prefix     = 'CLS-ResNeXt-152L64X1D4XP'
+        load_ft_epoch       = 22,
+        model_ft_prefix     = 'sft320deformsqex00003_966'
         
     )
     args = parser.parse_args()
