@@ -26,10 +26,10 @@ if __name__ == '__main__':
         bottle_neck      = 1,
         expansion        = 4, 
         num_group        = 1,
-        dilpat           = '', 
+        dilpat           = '',#'DEEPLAB.HEAD', 
         irv2             = False, 
-        deform           = 1,
-        sqex             = 1,
+        deform           = 0,
+        sqex             = 0,
         ratt             = 0,
         block567         = 0,
         lmar             = 0,
@@ -44,14 +44,14 @@ if __name__ == '__main__':
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
-        num_epochs       = 50,
-        lr               = 0.0003,
-        lr_step_epochs   = '15,25',
+        num_epochs       = 70,
+        lr               = 0.003,
+        lr_step_epochs   = '20,35',
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 22,
-        model_ft_prefix     = 'sft320deformsqex00003_966'
+        load_ft_epoch       = 11,
+        model_ft_prefix     = 'sft448from32097nude00003_9740'
         
     )
     args = parser.parse_args()
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
     else:
-        args.lr_step_epochs = '10,20'
+        args.lr_step_epochs = '25,40' #1,12
     
     # train
     

@@ -64,6 +64,8 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                             irnext_cls_args[k] = mx.random.normal(0, 0.01, shape=v)
         if 'se' in k:
             deeplab_args[k] = mx.nd.zeros(shape=v)
+        if 'offset' in k:
+            pass
         
         
         
@@ -87,7 +89,12 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                             irnext_cls_auxs[k] = mx.nd.random_uniform(shape=v)
                         else:
                             irnext_cls_auxs[k] = mx.random.normal(0, 0.01, shape=v)
-   
+        if 'se' in k:
+            deeplab_args[k] = mx.nd.zeros(shape=v)
+        if 'offset' in k:
+            pass
+
+
     data_shape=(32,3,224,224)
     arg_names = irnext_cls_symbol.list_arguments()
     print arg_names

@@ -147,10 +147,10 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
                                       no_bias=True, workspace=workspace, name=name + '_conv2')
         else:
             
-            offsetweight = mx.symbol.Variable(name+'_offset_weight', lr_mult=1.0)
-            offsetbias = mx.symbol.Variable(name+'_offset_bias', lr_mult=2.0)
+            offsetweight = mx.symbol.Variable(name+'_offset_weight', lr_mult=3.0)
+            offsetbias = mx.symbol.Variable(name+'_offset_bias', lr_mult=6.0)
             offset = mx.symbol.Convolution(name=name+'_offset', data = act2,
-                                                      num_filter=18, pad=(1, 1), kernel=(3, 3), stride=(1, 1),
+                                                      num_filter=18, pad=(dilation, dilation), kernel=(3, 3), stride=stride,
                                                       weight=offsetweight, bias=offsetbias)
             
             
@@ -395,6 +395,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
     # num_group=32, dilation=1, irv2 = False, deform=0, 
     
     dilation_dict = {'DEEPLAB.SHUTTLE':[1,1,2,1],
+                    'DEEPLAB.HEAD':[1,2,1,1],
                     'DEEPLAB.TAIL':[1,1,1,2],
                     'DEEPLAB.HOURGLASS':[1,2,1,2],
                     'DEEPLAB.EXP':[1,1,2,4],
@@ -402,7 +403,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
                     'DEEPLAB.REVEXP':[1,4,2,1],
                     'DEEPLAB.LIN':[1,1,2,3],
                     'DEEPLAB.REVLIN':[1,3,2,1],
-                    'DEEPLAB.DOUBLE':[1,2,2,2]}
+                    'DEEPLAB.DOUBLE':[2,2,2,2]}
     
     
     
@@ -413,7 +414,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         for i in range(num_stages):
             
-            current_deform = 0 if i!=num_stages else deform
+            current_deform = 0 if i!=(num_stages-1) else deform
             
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 

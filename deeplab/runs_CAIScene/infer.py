@@ -30,12 +30,13 @@ parser.add_argument('--batch-size', type=int, default=128,
 parser.add_argument('--mode', type=int, default=0,
     help='')
 #parser.add_argument('--size', type=str, default='448,512')
-parser.add_argument('--size', type=str, default='448,512')
+parser.add_argument('--size', type=str, default='448,456')
 parser.add_argument('--step', type=int, default=-24,
     help='if negative, use random crops')
 #parser.add_argument('--model', type=str, default='./model/ft448deformsqex0.0001_9682,3|./model/sft320deformsqex_9692,1')
 #parser.add_argument('--model', type=str, default='./model/sft320deformsqex_9692,1')
-parser.add_argument('--model', type=str, default='sft448deformsqex00003,1|/data1/deepinsight/CAIScene/ft448deformsqex0.0001_9682,3') #
+#parser.add_argument('--model', type=str, default='sft448deformsqex00003,1|/data1/deepinsight/CAIScene/ft448deformsqex0.0001_9682,3') #
+parser.add_argument('--model', type=str, default='a1_6,1')
 parser.add_argument('--output-dir', type=str, default='',
     help='')
 args = parser.parse_args()
@@ -101,7 +102,7 @@ class DataLoader:
 
 def image_preprocess(img_full_path):
     _size = args.size.split(",")
-    img_sz = int(_size[1])
+    img_sz = int(_size[1]) + np.random.randint(9)
     crop_sz = int(_size[0])
     #print(img_full_path)
     img = cv2.cvtColor(cv2.imread(img_full_path), cv2.COLOR_BGR2RGB)
@@ -155,7 +156,7 @@ def image_preprocess2(img_full_path):
     nd_img = nd.array(img)
     if img_sz>0:
         nd_img = mx.image.resize_short(nd_img, img_sz)                                                                      
-    nd_img = mx.image.random_size_crop(nd_img, (crop_sz, crop_sz), 0.8, (3.0/4, 4.0/3))[0]     
+    nd_img = mx.image.random_size_crop(nd_img, (crop_sz, crop_sz), 0.875, (3.0/4, 4.0/3))[0]     
     img = nd_img.asnumpy()                         
     img = np.swapaxes(img, 0, 2)      
     img = np.swapaxes(img, 1, 2)  # change to CHW      
