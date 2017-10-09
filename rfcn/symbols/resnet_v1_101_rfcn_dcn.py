@@ -26,6 +26,7 @@ class resnet_v1_101_rfcn_dcn(Symbol):
         self.filter_list = [256, 512, 1024, 2048]
 
     def get_resnet_v1_conv4(self, data):
+        
         conv1 = mx.symbol.Convolution(name='conv1', data=data, num_filter=64, pad=(3, 3), kernel=(7, 7), stride=(2, 2),
                                       no_bias=True)
         bn_conv1 = mx.symbol.BatchNorm(name='bn_conv1', data=conv1, use_global_stats=True, fix_gamma=False, eps=self.eps)

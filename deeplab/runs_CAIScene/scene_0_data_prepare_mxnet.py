@@ -5,7 +5,7 @@ import codecs
 import json
 import glob
 
-DATA_ROOT='/data1/deepinsight/aichallenger/scene'
+DATA_ROOT='/home/deepinsight/frankwang/deepinsight/aichallenger/scene'
 
 os.system('mkdir -p {0}/ai_challenger_scene_trainval/train'.format(DATA_ROOT))
 os.system('mkdir -p {0}/ai_challenger_scene_trainval/val'.format(DATA_ROOT))
@@ -35,7 +35,7 @@ DATA_VAL_JSON=DATA_VAL_ROOT+'/scene_validation_annotations_20170908.json'
 
 DATA_TEST_A_ROOT=DATA_ROOT+'/ai_challenger_scene_test_a_20170922/scene_test_a_images_20170922'
 
-'''
+
 with codecs.open(DATA_TRAIN_JSON,encoding='utf-8') as f:
     trainList = json.load(f)
 
@@ -72,7 +72,7 @@ with codecs.open('./trainval.lst','w',encoding='utf-8') as f:
             print idx
         i = int(d['label_id'])
         f.write('{0}\t{1}\t{2}\n'.format(idx+counter, i, d['image_id']))
-        '''
+        
             
 
 with codecs.open('./test_a.lst','w',encoding='utf-8') as f:

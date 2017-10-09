@@ -18,17 +18,17 @@ from easydict import EasyDict as edict
 
 parser = argparse.ArgumentParser(description="",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--lst', type=str, default='./data/val.lst',
+parser.add_argument('--lst', type=str, default='val.lst',
     help='')
-parser.add_argument('--val-root-path', type=str, default='/raid5data/dplearn/aichallenger/scene/val')
-parser.add_argument('--test-root-path', type=str, default='/raid5data/dplearn/aichallenger/scene/test_a')
-parser.add_argument('--gpu', type=int, default=6,
+parser.add_argument('--val-root-path', type=str, default='/data1/deepinsight/aichallenger/scene/ai_challenger_scene_validation_20170908/scene_validation_images_20170908')
+parser.add_argument('--test-root-path', type=str, default='/data1/deepinsight/aichallenger/scene/ai_challenger_scene_test_a_20170922/scene_test_a_images_20170922')
+parser.add_argument('--gpu', type=int, default=0,
     help='')
-parser.add_argument('--gpus', type=str, default='0,1,2,3,4,5,6,7',
+parser.add_argument('--gpus', type=str, default='0,1,2',
     help='')
 parser.add_argument('--num-classes', type=int, default=80,
     help='')
-parser.add_argument('--batch-size', type=int, default=128,
+parser.add_argument('--batch-size', type=int, default=120,
     help='')
 parser.add_argument('--mode', type=int, default=0,
     help='')
@@ -47,7 +47,8 @@ parser.add_argument('--step', type=int, default=-32,
 #parser.add_argument('--model', type=str, default='./model/sft448from32097nude00003_9740,11,448')
 #parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224|./model/sft448from32097nude00003_9740,11,448|./model/sft320nude00003_97,19,320')
 #parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224|./model/sft448from32097nude00003_9740,11,448')
-parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224|./model/sft448from32097nude00003_9740,11,448')
+parser.add_argument('--model', type=str, default='ft224nude0003_9685,27,224|sft448from32097nude00003_9740,11,448') #  #ft224nude0003_97,50,224|
+#parser.add_argument('--model', type=str, default='sft320nude00003_9736,5,320|sft640from448974nude00002_973,12,640')
 parser.add_argument('--output-dir', type=str, default='',
     help='')
 args = parser.parse_args()
@@ -98,10 +99,13 @@ def image_preprocess(img_full_path):
   #x0 = int((w - crop_sz) / 2)
   #y0 = int((h - crop_sz) / 2)
 
+  x0_side = int((w-crop_sz)/4)
+  y0_side = int((h-crop_sz)/4)
+
   x0_max = w-crop_sz
   y0_max = h-crop_sz
-  x0 = np.random.randint(low=0, high=x0_max)
-  y0 = np.random.randint(low=0, high=y0_max)
+  x0 = np.random.randint(low=x0_side, high=x0_max-x0_side)
+  y0 = np.random.randint(low=y0_side, high=y0_max-y0_side)
 
   img = img[y0:y0+crop_sz, x0:x0+crop_sz, :]
 
@@ -129,7 +133,8 @@ def image_preprocess2(img, crop_sz):
   if args.step==0:
     nd_img = mx.image.center_crop(nd_img, (crop_sz, crop_sz))[0]
   else:
-    nd_img = mx.image.random_crop(nd_img, (crop_sz, crop_sz))[0]
+    nd_img = mx.image.random_crop(nd_img, (int((img_sz+crop_sz)/2),int((img_sz+crop_sz)/2)) )[0]
+    nd_img = mx.image.center_crop(nd_img, (crop_sz, crop_sz))[0]
     if random.random()<0.5:
       nd_img = nd.flip(nd_img, axis=1)
   img = nd_img.asnumpy()
@@ -166,6 +171,8 @@ args.resize = int(args.size.split(',')[1])
 
 nets = []
 gpuid = args.gpu
+ctx = mx.gpu(gpuid)
+
 for model_str in args.model.split('|'):
   vec = model_str.split(',')
   assert len(vec)>1
@@ -175,12 +182,11 @@ for model_str in args.model.split('|'):
   print('loading',prefix, epoch)
   net = edict()
   net.crop_sz = crop_sz
-  ctx = mx.gpu(gpuid)
   net.ctx = ctx
   net.sym, net.arg_params, net.aux_params = mx.model.load_checkpoint(prefix, epoch)
   net.arg_params, net.aux_params = ch_dev(net.arg_params, net.aux_params, net.ctx)
   nets.append(net)
-  gpuid+=1
+  #gpuid+=1
 
 imgs = []
 i = 0

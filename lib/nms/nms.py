@@ -21,13 +21,22 @@ def gpu_nms_wrapper(thresh, device_id):
     return _nms
 
 
-def nms(dets, thresh):
+def nms(dets, thresh, mode='naive', scaler=0.5, bias=0.0):
     """
     greedily select boxes with high confidence and overlap with current maximum <= thresh
     rule out overlap >= thresh
     :param dets: [[x1, y1, x2, y2 score]]
     :param thresh: retain overlap < thresh
+    :param mode:
+    
+    https://arxiv.org/pdf/1704.04503.pdf
+    Modified by Weiyang Wang
+    'naive': original hard nms implementation
+    'softLDiscont': SoftNMS-Linear according to paper
+    'softLCont':SoftNMS-Linear which is a conitinuous function
+    
     :return: indexes to keep
+    
     """
     if dets.shape[0] == 0:
         return []
@@ -40,6 +49,7 @@ def nms(dets, thresh):
 
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
     order = scores.argsort()[::-1]
+    scores = scores[order]
 
     keep = []
     while order.size > 0:
@@ -54,8 +64,22 @@ def nms(dets, thresh):
         h = np.maximum(0.0, yy2 - yy1 + 1)
         inter = w * h
         ovr = inter / (areas[i] + areas[order[1:]] - inter)
-
+        if mode=='naive':
+            pass 
+        else:
+            if mode=='softLDiscont':
+                scores = scores * ( np.ones(len(ovr)) if ovr < threshold else  (1.0 - ovr) )
+            elif mode=='softLCont':
+                scores = scores * ( np.ones(len(ovr)) if ovr < threshold else (1.0 - ovr + 0.01)/(1.0 - thresh + 0.01) )
+            elif mode=='softGaussian':
+                scores = scores * np.clip( np.exp( - ovr**2 / scaler + bias ) , 0, 1)
+            elif mode=='softSigmoid':
+                scores = scores * (1.0 - np.exp( ovr / scaler + bias ) ) / ( 1.0 + np.exp( ovr / scaler + bias ))
+            neworder = scores.argsort()[::-1]
+            order = order[neworder]
+            scores = scores[neworder]
         inds = np.where(ovr <= thresh)[0]
         order = order[inds + 1]
+        scores = scores[inds + 1]
 
     return keep

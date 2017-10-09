@@ -16,12 +16,15 @@ if __name__ == '__main__':
     fit.add_fit_args(parser)
     data.add_data_args(parser)
     data.add_data_aug_args(parser)
+    
+    
+    
     # use a large aug level
-    data.set_data_aug_level(parser, 3)
+    data.set_data_aug_level(parser, 1)
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 152,
+        num_layers       = 50,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
@@ -46,12 +49,12 @@ if __name__ == '__main__':
         # train
         num_epochs       = 70,
         lr               = 0.003,
-        lr_step_epochs   = '20,35',
+        lr_step_epochs   = '25,40',
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 11,
-        model_ft_prefix     = 'sft448from32097nude00003_9740'
+        load_ft_epoch       = 15,
+        model_ft_prefix     = '50ft224nude0003'
         
     )
     args = parser.parse_args()
@@ -77,7 +80,7 @@ if __name__ == '__main__':
         deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
     else:
-        args.lr_step_epochs = '25,40' #1,12
+        args.lr_step_epochs = '65,68'
     
     # train
     

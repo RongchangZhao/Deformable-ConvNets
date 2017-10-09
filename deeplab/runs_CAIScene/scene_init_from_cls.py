@@ -54,18 +54,21 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                 if rk in irnext_cls_args:
                     print('initializing', k, rk)
                     if arg_shape_dict[rk]==v:
-                        irnext_cls_args[k] = irnext_cls_args[rk].copy()
+                        deeplab_args[k] = deeplab_args[rk].copy()
                     else:
                         if k.endswith('_beta'):
-                            irnext_cls_args[k] = mx.nd.zeros(shape=v)
+                            deeplab_args[k] = mx.nd.zeros(shape=v)
                         elif k.endswith('_gamma'):
-                            irnext_cls_args[k] = mx.nd.random_uniform(shape=v)
+                            deeplab_args[k] = mx.nd.random_uniform(shape=v)
                         else:
-                            irnext_cls_args[k] = mx.random.normal(0, 0.01, shape=v)
+                            deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
         if 'se' in k:
             deeplab_args[k] = mx.nd.zeros(shape=v)
         if 'offset' in k:
-            pass
+            if 'weight' in k:
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+            elif 'bias' in k:
+                deeplab_args[k] = mx.nd.zeros(shape=v)
         
         
         
@@ -81,18 +84,21 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                 if rk in irnext_cls_auxs:
                     print('initializing', k, rk)
                     if aux_shape_dict[rk]==v:
-                        irnext_cls_auxs[k] = irnext_cls_auxs[rk].copy()
+                        deeplab_args[k] = deeplab_args[rk].copy()
                     else:
                         if k.endswith('_beta'):
-                            irnext_cls_auxs[k] = mx.nd.zeros(shape=v)
+                            deeplab_args[k] = mx.nd.zeros(shape=v)
                         elif k.endswith('_gamma'):
-                            irnext_cls_auxs[k] = mx.nd.random_uniform(shape=v)
+                            deeplab_args[k] = mx.nd.random_uniform(shape=v)
                         else:
-                            irnext_cls_auxs[k] = mx.random.normal(0, 0.01, shape=v)
+                            deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
         if 'se' in k:
             deeplab_args[k] = mx.nd.zeros(shape=v)
         if 'offset' in k:
-            pass
+            if 'weight' in k:
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+            elif 'bias' in k:
+                deeplab_args[k] = mx.nd.zeros(shape=v)
 
 
     data_shape=(32,3,224,224)
