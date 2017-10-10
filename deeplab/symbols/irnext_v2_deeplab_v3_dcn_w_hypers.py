@@ -279,21 +279,9 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
     else:
         raise Exception("bottle_neck error: Unrecognized Bottleneck params.")
 
-# A Universal Function for RPN in Detectors
-
-def get_det_rpn(self, conv_feat, num_anchors):
-    rpn_conv = mx.sym.Convolution(
-            data=conv_feat, kernel=(3, 3), pad=(1, 1), num_filter=512, name="rpn_conv_3x3")
-    rpn_relu = mx.sym.Activation(data=rpn_conv, act_type="relu", name="rpn_relu")
-    rpn_cls_score = mx.sym.Convolution(
-            data=rpn_relu, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
-    rpn_bbox_pred = mx.sym.Convolution(
-            data=rpn_relu, kernel=(1, 1), pad=(0, 0), num_filter=4 * num_anchors, name="rpn_bbox_pred")
-    return rpn_cls_score, rpn_bbox_pred
 
 
-        
-        
+
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
                lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, 
@@ -972,7 +960,24 @@ class irnext_deeplab_dcn():
             
          
     ##### SO MANY TODOOOOOOOOOOOS
-    def get_det_symbol(self, cfg, is_train=True):
+    
+    
+    # A Universal Function for RPN in Detectors
+
+    def get_det_rpn(self, conv_feat, num_anchors):
+        rpn_conv = mx.sym.Convolution(
+            data=conv_feat, kernel=(3, 3), pad=(1, 1), num_filter=512, name="rpn_conv_3x3")
+        rpn_relu = mx.sym.Activation(data=rpn_conv, act_type="relu", name="rpn_relu")
+        rpn_cls_score = mx.sym.Convolution(
+            data=rpn_relu, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
+        rpn_bbox_pred = mx.sym.Convolution(
+            data=rpn_relu, kernel=(1, 1), pad=(0, 0), num_filter=4 * num_anchors, name="rpn_bbox_pred")
+        return rpn_cls_score, rpn_bbox_pred
+
+
+    def get_det_symbol(self, cfg, is_train=True\
+                      ## SO MANY KWARGS\
+                      ):
 
         # config alias for convenient
         num_classes = cfg.dataset.NUM_CLASSES
@@ -1013,13 +1018,25 @@ class irnext_deeplab_dcn():
                           conv_workspace=self.workspace,
                           taskmode='DET4', 
                           seg_stride_mode='', dtype='float32', **kwargs)
+                       
+                       
             
         # shared convolutional layers
-        conv_feat = self.get_resnet_v1_conv4(data)
-        # res5
-        relu1 = self.get_resnet_v1_conv5(conv_feat)
+        # BN-Relu conv_feat4
+                       
+        conv_feat4_bn = mx.sym.BatchNorm(data=conv_feat4, fix_gamma=False, eps=2e-5, \
+                                         momentum=bn_mom, name=name + '_conv_feat4_bn')
+        conv_feat = mx.sym.Activation(data=conv_feat4_bn, act_type='relu', name=name + 'conv_feat4_relu')
+        
+        # res5, BN-Relu conv_feat5
+        
+        conv_feat5_bn = mx.sym.BatchNorm(data=conv_feat5, fix_gamma=False, eps=2e-5, \
+                                         momentum=bn_mom, name=name + '_conv_feat5_bn')
+        relu1 = mx.sym.Activation(data=conv_feat5_bn, act_type='relu', name=name + 'conv_feat5_relu')
+        
 
-        rpn_cls_score, rpn_bbox_pred = self.get_rpn(conv_feat, num_anchors)
+        
+        rpn_cls_score, rpn_bbox_pred = self.get_det_rpn(conv_feat, num_anchors)
 
         if is_train:
             # prepare rpn data
@@ -1159,8 +1176,38 @@ class irnext_deeplab_dcn():
             im_info = mx.sym.Variable(name="im_info")
 
         # shared convolutional layers
-        conv_feat = self.get_resnet_v1_conv4(data)
-        rpn_cls_score, rpn_bbox_pred = self.get_rpn(conv_feat, num_anchors)
+        
+        conv_feat4 = get_conv(  data,
+                          self.num_classes,
+                          self.num_layers,
+                          self.outfeature,
+                          bottle_neck=self.bottle_neck,
+                          expansion=self.expansion, 
+                          num_group=self.num_group, 
+                          lastout=self.lastout,
+                          dilpat=self.dilpat, 
+                          irv2=self.irv2, 
+                          deform=self.deform, 
+                          sqex=self.sqex,
+                          ratt=self.ratt,
+                          lmar=self.lmar,
+                          lmarbeta=self.lmarbeta,
+                          lmarbetamin=self.lmarbetamin,
+                          lmarscale=self.lmarscale,
+                          conv_workspace=self.workspace,
+                          taskmode='DET3', 
+                          seg_stride_mode='', dtype='float32', **kwargs) [0]
+        
+        
+        
+        # BN-Relu conv_feat4
+                       
+        conv_feat4_bn = mx.sym.BatchNorm(data=conv_feat4, fix_gamma=False, eps=2e-5, \
+                                         momentum=bn_mom, name=name + '_conv_feat4_bn')
+        conv_feat = mx.sym.Activation(data=conv_feat4_bn, act_type='relu', name=name + 'conv_feat4_relu')
+        
+        rpn_cls_score, rpn_bbox_pred = self.get_det_rpn(conv_feat, num_anchors)
+        
         if is_train:
             # prepare rpn data
             rpn_cls_score_reshape = mx.sym.Reshape(
@@ -1225,8 +1272,44 @@ class irnext_deeplab_dcn():
             rois = mx.symbol.Reshape(data=rois, shape=(-1, 5), name='rois_reshape')
 
         # shared convolutional layers
-        conv_feat = self.get_resnet_v1_conv4(data)
-        relu1 = self.get_resnet_v1_conv5(conv_feat)
+        
+        conv_feat4, conv_feat5 = get_conv(  data,
+                          self.num_classes,
+                          self.num_layers,
+                          self.outfeature,
+                          bottle_neck=self.bottle_neck,
+                          expansion=self.expansion, 
+                          num_group=self.num_group, 
+                          lastout=self.lastout,
+                          dilpat=self.dilpat, 
+                          irv2=self.irv2, 
+                          deform=self.deform, 
+                          sqex=self.sqex,
+                          ratt=self.ratt,
+                          lmar=self.lmar,
+                          lmarbeta=self.lmarbeta,
+                          lmarbetamin=self.lmarbetamin,
+                          lmarscale=self.lmarscale,
+                          conv_workspace=self.workspace,
+                          taskmode='DET4', 
+                          seg_stride_mode='', dtype='float32', **kwargs)
+                       
+                       
+            
+        # shared convolutional layers
+        # BN-Relu conv_feat4
+                       
+        conv_feat4_bn = mx.sym.BatchNorm(data=conv_feat4, fix_gamma=False, eps=2e-5, \
+                                         momentum=bn_mom, name=name + '_conv_feat4_bn')
+        conv_feat = mx.sym.Activation(data=conv_feat4_bn, act_type='relu', name=name + 'conv_feat4_relu')
+        
+        # res5, BN-Relu conv_feat5
+        
+        conv_feat5_bn = mx.sym.BatchNorm(data=conv_feat5, fix_gamma=False, eps=2e-5, \
+                                         momentum=bn_mom, name=name + '_conv_feat5_bn')
+        relu1 = mx.sym.Activation(data=conv_feat5_bn, act_type='relu', name=name + 'conv_feat5_relu')
+        
+        
 
         # conv_new_1
         conv_new_1 = mx.sym.Convolution(data=relu1, kernel=(1, 1), num_filter=1024, name="conv_new_1", lr_mult=3.0)
