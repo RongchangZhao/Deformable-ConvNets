@@ -205,12 +205,6 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
             
         return out + shortcut
             
-            
-            
-    
-    
-    
-    
     elif bottle_neck == 2:
         # TODOOOOOOOOOOOOOOOOOOO
         raise Exception("bottle_neck error: Unimplemented Bottleneck Unit: Non-Preactivated IRB")
@@ -526,8 +520,8 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
                 exec('returnList.append(body_{0})'.format(i))
                 
             
-        bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
-        relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
+        #bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
+        #relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
         
         return returnList
         
@@ -997,6 +991,29 @@ class irnext_deeplab_dcn():
             data = mx.sym.Variable(name="data")
             im_info = mx.sym.Variable(name="im_info")
 
+        
+        
+        conv_feat4, conv_feat5 = get_conv(  data,
+                          self.num_classes,
+                          self.num_layers,
+                          self.outfeature,
+                          bottle_neck=self.bottle_neck,
+                          expansion=self.expansion, 
+                          num_group=self.num_group, 
+                          lastout=self.lastout,
+                          dilpat=self.dilpat, 
+                          irv2=self.irv2, 
+                          deform=self.deform, 
+                          sqex=self.sqex,
+                          ratt=self.ratt,
+                          lmar=self.lmar,
+                          lmarbeta=self.lmarbeta,
+                          lmarbetamin=self.lmarbetamin,
+                          lmarscale=self.lmarscale,
+                          conv_workspace=self.workspace,
+                          taskmode='DET4', 
+                          seg_stride_mode='', dtype='float32', **kwargs)
+            
         # shared convolutional layers
         conv_feat = self.get_resnet_v1_conv4(data)
         # res5

@@ -53,8 +53,8 @@ if __name__ == '__main__':
         dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 15,
-        model_ft_prefix     = '50ft224nude0003'
+        load_ft_epoch       = 2,
+        model_ft_prefix     = '50ft224nude0003_958'
         
     )
     args = parser.parse_args()
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
     else:
-        args.lr_step_epochs = '65,68'
+        args.lr_step_epochs = '3,65'
     
     # train
     
