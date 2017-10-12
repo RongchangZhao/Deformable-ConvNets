@@ -5,8 +5,10 @@ logging.basicConfig(level=logging.DEBUG)
 from common import find_mxnet, data, fit
 from common.util import download_file
 import mxnet as mx
-from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
+
 import runs_CAIScene.scene_init_from_cls
+
+from symbols.inceptions import *
 
 
 if __name__ == '__main__':
@@ -17,10 +19,43 @@ if __name__ == '__main__':
     data.add_data_args(parser)
     data.add_data_aug_args(parser)
     
-    
-    
     # use a large aug level
     data.set_data_aug_level(parser, 1)
+    
+    
+    
+    parser.set_defaults(
+        
+        # network
+        
+        basefilter=16,
+        num_group=1,
+        num_group_11=1,
+        scale=1.0,
+        units=[10,20,9],
+        
+        # data
+        num_classes = 80,
+        num_examples = 53878,
+        image_shape = '3,299,299',
+        lastout = 8,
+        batch_size = 256,
+        
+        # train
+        num_epochs       = 100,
+        lr               = 0.1,
+        lr_step_epochs   = '30,60,80',
+        dtype            = 'float32',
+        retrain          = 1,
+        
+        
+        # load , please tune
+        load_ft_epoch       = 21,
+        model_ft_prefix     = '/data1/deepinsight/CAIScene/50ft320nude0003_9656'
+
+    )
+    
+    '''
     parser.set_defaults(
         # network
         network          = 'irnext',
@@ -57,34 +92,34 @@ if __name__ == '__main__':
         model_ft_prefix     = '/data1/deepinsight/CAIScene/50ft320nude0003_9656'
         
     )
+    '''
     args = parser.parse_args()
 
+    
+    
+    
     # load network
     #from importlib import import_module
     #net = import_module('symbols.'+args.network)
     # sym = net.get_symbol(**vars(args))
     
-    net = irnext_deeplab_dcn(**vars(args))
-    sym = net.get_cls_symbol()
+    sym = get_symbol_irv2(**vars(args))
 
     # Init Parameters
     ctx = mx.cpu()
-        
-    _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
-        
-        
-    data_shape_dict = {'data': (args.batch_size, 3, 224, 224), 
-                       'softmax_label': (args.batch_size,)}
-
-    if args.model_ft_prefix[0:3] == 'CLS':
-        deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
-                            sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
-    else:
-        args.lr_step_epochs = '30,65'
     
+    if args.retrain == 1: # 1 From Scratch 0 FT
+        fit.fit(args, sym, data.get_rec_iter)
+    else:
+        args.lr_step_epochs = '5,10'
+        _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
+        fit.fit(args, sym, data.get_rec_iter, arg_params=deeplab_args,aux_params=deeplab_auxs)
+        
+        
     # train
     
     #args.arg_params         = deeplab_args
     #args.aux_params         = deeplab_auxs
-    fit.fit(args, sym, data.get_rec_iter, arg_params=deeplab_args,aux_params=deeplab_auxs)
+    
+
 

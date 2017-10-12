@@ -3,7 +3,7 @@ import logging
 import os
 import time
 
-def _get_lr_scheduler(args, kv):
+def _get_lr_scheduler(args, kv, MF=True):
     if 'lr_factor' not in args or args.lr_factor >= 1:
         return (args.lr, None)
     epoch_size = args.num_examples / args.batch_size
@@ -19,7 +19,10 @@ def _get_lr_scheduler(args, kv):
         logging.info('Adjust learning rate to %e for epoch %d' %(lr, begin_epoch))
 
     steps = [epoch_size * (x-begin_epoch) for x in step_epochs if x-begin_epoch > 0]
-    return (lr, mx.lr_scheduler.MultiFactorScheduler(step=steps, factor=args.lr_factor))
+    if MF:
+        return (lr, mx.lr_scheduler.MultiFactorScheduler(step=steps, factor=args.lr_factor))
+    else:
+        return (lr, mx.lr_scheduler.MultiFactorScheduler(step=steps, factor=args.lr_factor))
 
 def _load_model(args, rank=0):
     if 'load_epoch' not in args or args.load_epoch is None:

@@ -46,9 +46,9 @@ import numpy as np
 
 ## Todo: Deformable, Attention
 
-def Conv(data, num_filter, num_group = 1, kernel=(1, 1), stride=(1, 1), pad=(0, 0), 
-         act_type="relu", mirror_attr={}, with_act=True, 
-         name=None, suffix=''):
+def Conv(data, num_filter, num_group = 1, kernel=(1, 1), stride=(1, 1), pad=(0, 0), \
+         act_type="relu", mirror_attr={}, with_act=True, name=None, suffix=''):
+    
     conv = mx.sym.Convolution(data=data, num_filter=num_filter, num_group=num_group, kernel=kernel, stride=stride, pad=pad, no_bias=True, name='%s%s_conv2d' %(name, suffix))
     bn = mx.sym.BatchNorm(data=conv, name='%s%s_batchnorm' %(name, suffix), fix_gamma=True)
     if with_act:
@@ -88,22 +88,22 @@ def ConvFactory(data, num_filter, kernel, stride=(1, 1), pad=(0, 0), act_type="r
 
 def block35_irv2(net, input_num_channels, 
                  basefilter=16, num_group=1 ,num_group_11=1, scale=1.0,
-                 with_act=True, act_type='relu', mirror_attr={}):
+                 with_act=True, act_type='relu', mirror_attr={}, name=None):
     #Conv11
-    tower_conv = Conv(net, basefilter*2, num_group=num_group_11, kernel=(1, 1))
+    tower_conv = Conv(net, basefilter*2, num_group=num_group_11, kernel=(1, 1), name=name+'_35b11')
     #Conv11-Conv33
-    tower_conv1_0 = Conv(net, basefilter*2, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1_0, basefilter*2, num_group=num_group, kernel=(3, 3), pad=(1, 1))
+    tower_conv1_0 = Conv(net, basefilter*2, num_group=num_group_11, kernel=(1, 1), name=name+'_35b21')
+    tower_conv1_1 = Conv(tower_conv1_0, basefilter*2, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=name+'_35b22')
     #Conv11-Conv33-Conv33
-    tower_conv2_0 = Conv(net, basefilter*2, num_group=num_group_11,kernel=(1, 1))
-    tower_conv2_1 = Conv(tower_conv2_0, basefilter*3, num_group=num_group, kernel=(3, 3), pad=(1, 1))
-    tower_conv2_2 = Conv(tower_conv2_1, basefilter*4, num_group=num_group, kernel=(3, 3), pad=(1, 1))
+    tower_conv2_0 = Conv(net, basefilter*2, num_group=num_group_11,kernel=(1, 1), name=name+'_35b31')
+    tower_conv2_1 = Conv(tower_conv2_0, basefilter*3, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=name+'_35b32')
+    tower_conv2_2 = Conv(tower_conv2_1, basefilter*4, num_group=num_group, kernel=(3, 3), pad=(1, 1), name=name+'_35b33')
     #Concat
     tower_mixed = mx.symbol.Concat(*[tower_conv, tower_conv1_1, tower_conv2_2])
-    tower_out = Conv(
-        tower_mixed, input_num_channels, numgroup=num_group_11, kernel=(1, 1), with_act=False)
-
-    net += scale * tower_out
+    tower_out = Conv(tower_mixed, input_num_channels, num_group=num_group_11, kernel=(1, 1), with_act=False, name=name+'_35out')
+    
+    
+    net = net + tower_out * scale
     if with_act:
         act = mx.symbol.Activation(
             data=net, act_type=act_type, attr=mirror_attr)
@@ -114,19 +114,19 @@ def block35_irv2(net, input_num_channels,
 
 def block17_irv2(net, input_num_channels,
                  basefilter=32, num_group=1 ,num_group_11=1, scale=1.0,
-                 scale=1.0, with_act=True, act_type='relu', mirror_attr={}):
+                 with_act=True, act_type='relu', mirror_attr={}, name=None):
     # Conv11
-    tower_conv = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1))
+    tower_conv = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1), name=name+'_17b11')
     # Conv11-Conv17-Conv71
-    tower_conv1_0 = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1_0, basefilter*5, num_group=num_group, kernel=(1, 7), pad=(1, 2))
-    tower_conv1_2 = Conv(tower_conv1_1, basefilter*6, num_group=num_group, kernel=(7, 1), pad=(2, 1))
+    tower_conv1_0 = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1), name=name+'_17b21')
+    tower_conv1_1 = Conv(tower_conv1_0, basefilter*5, num_group=num_group, kernel=(1, 7), pad=(1, 2), name=name+'_17b22')
+    tower_conv1_2 = Conv(tower_conv1_1, basefilter*6, num_group=num_group, kernel=(7, 1), pad=(2, 1), name=name+'_17b23')
     # Concat
     tower_mixed = mx.symbol.Concat(*[tower_conv, tower_conv1_2])
     # Conv11
     tower_out = Conv(
-        tower_mixed, input_num_channels, num_group=num_group_11, kernel=(1, 1), with_act=False)
-    net += scale * tower_out
+        tower_mixed, input_num_channels, num_group=num_group_11, kernel=(1, 1), with_act=False, name=name+'_17out')
+    net = net + tower_out * scale
     if with_act:
         act = mx.symbol.Activation(
             data=net, act_type=act_type, attr=mirror_attr)
@@ -137,20 +137,20 @@ def block17_irv2(net, input_num_channels,
 
 def block8_irv2(net, input_num_channels,
                 basefilter=32, num_group=1 ,num_group_11=1, scale=1.0,
-                scale=1.0, with_act=True, act_type='relu', mirror_attr={}):
+                with_act=True, act_type='relu', mirror_attr={}, name=None):
     # Conv11
-    tower_conv = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1))
+    tower_conv = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1), name=name+'_8b11')
     # Conv11-Conv13-Conv31
-    tower_conv1_0 = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1_0, basefilter*7, num_group=num_group, kernel=(1, 3), pad=(0, 1))
-    tower_conv1_2 = Conv(tower_conv1_1, basefilter*8, num_group=num_group, kernel=(3, 1), pad=(1, 0))
+    tower_conv1_0 = Conv(net, basefilter*6, num_group=num_group_11, kernel=(1, 1), name=name+'_8b21')
+    tower_conv1_1 = Conv(tower_conv1_0, basefilter*7, num_group=num_group, kernel=(1, 3), pad=(0, 1), name=name+'_8b22')
+    tower_conv1_2 = Conv(tower_conv1_1, basefilter*8, num_group=num_group, kernel=(3, 1), pad=(1, 0), name=name+'_8b23')
     #Concat
     tower_mixed = mx.symbol.Concat(*[tower_conv, tower_conv1_2])
     #Conv11
     tower_out = Conv(
-        tower_mixed, input_num_channels, num_group=num_group_11, kernel=(1, 1), with_act=False)
+        tower_mixed, input_num_channels, num_group=num_group_11, kernel=(1, 1), with_act=False, name=name+'_8out')
     
-    net += scale * tower_out
+    net = net + tower_out * scale
     if with_act:
         act = mx.symbol.Activation(
             data=net, act_type=act_type, attr=mirror_attr)
@@ -159,35 +159,35 @@ def block8_irv2(net, input_num_channels,
         return net
 
 
-def repeat(inputs, repetitions, layer, *args, **kwargs):
+def repeat(inputs, repetitions, layer, name=None, *args, **kwargs):
     outputs = inputs
     for i in range(repetitions):
-        outputs = layer(outputs, *args, **kwargs)
+        outputs = layer(outputs, name=name+'_'+str(i), *args, **kwargs)
     return outputs
 
 
 def get_symbol_irv2(num_classes=1000, 
                basefilter=16, num_group=1 ,num_group_11=1, scale=1.0,
                lastout = 8,
-               units = [10,20,9]
+               units = [10,20,9],
                **kwargs):
     data = mx.symbol.Variable(name='data')
     # Size 299
     # Stem 1 And Downsampling
     conv1a_3_3 = Conv(data,
                       basefilter*2, num_group=num_group,
-                      kernel=(3, 3), stride=(2, 2))
+                      kernel=(3, 3), stride=(2, 2), name='conv1a')
     # Size 149
-    conv2a_3_3 = Conv(conv1a_3_3, basefilter*2, num_group=num_group, kernel=(3, 3))
+    conv2a_3_3 = Conv(conv1a_3_3, basefilter*2, num_group=num_group, kernel=(3, 3), name='conv2a')
     # Size 147
-    conv2b_3_3 = Conv(conv2a_3_3, basefilter*4, num_group=num_group, kernel=(3, 3), pad=(1, 1))
+    conv2b_3_3 = Conv(conv2a_3_3, basefilter*4, num_group=num_group, kernel=(3, 3), pad=(1, 1), name='conv2b')
     # Size 147
     maxpool3a_3_3 = mx.symbol.Pooling(
         data=conv2b_3_3, kernel=(3, 3), stride=(2, 2), pool_type='max')
     # Stem 2 And Downsampling
-    conv3b_1_1 = Conv(maxpool3a_3_3, basefilter*5, num_group=num_group_11, kernel=(1, 1))
+    conv3b_1_1 = Conv(maxpool3a_3_3, basefilter*5, num_group=num_group_11, kernel=(1, 1), name='conv3b')
     # 73
-    conv4a_3_3 = Conv(conv3b_1_1, basefilter*12, num_group=num_group, kernel=(3, 3))
+    conv4a_3_3 = Conv(conv3b_1_1, basefilter*12, num_group=num_group, kernel=(3, 3), name='conv4a')
     # 71
     maxpool5a_3_3 = mx.symbol.Pooling(
         data=conv4a_3_3, kernel=(3, 3), stride=(2, 2), pool_type='max')
@@ -195,34 +195,34 @@ def get_symbol_irv2(num_classes=1000,
     # Size 35
     # Stem 3 And Downsampling
     # Branch31: Conv11
-    tower_conv = Conv(maxpool5a_3_3, basefilter*6, num_group=num_group_11, kernel=(1, 1))
+    tower_conv = Conv(maxpool5a_3_3, basefilter*6, num_group=num_group_11, kernel=(1, 1), name='branch31')
     # Branch32: Conv11-Conv55
-    tower_conv1_0 = Conv(maxpool5a_3_3, basefilter*3, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1_0, basefilter*4, num_group=num_group, kernel=(5, 5), pad=(2, 2))
+    tower_conv1_0 = Conv(maxpool5a_3_3, basefilter*3, num_group=num_group_11, kernel=(1, 1), name='branch321')
+    tower_conv1_1 = Conv(tower_conv1_0, basefilter*4, num_group=num_group, kernel=(5, 5), pad=(2, 2), name='branch322')
     # Branch33: Conv11-Conv33-Conv33
-    tower_conv2_0 = Conv(maxpool5a_3_3, basefilter*4, num_group=num_group_11, kernel=(1, 1))
-    tower_conv2_1 = Conv(tower_conv2_0, basefilter*6, num_group=num_group, kernel=(3, 3), pad=(1, 1))
-    tower_conv2_2 = Conv(tower_conv2_1, basefilter*6, num_group=num_group, kernel=(3, 3), pad=(1, 1))
+    tower_conv2_0 = Conv(maxpool5a_3_3, basefilter*4, num_group=num_group_11, kernel=(1, 1), name='branch331')
+    tower_conv2_1 = Conv(tower_conv2_0, basefilter*6, num_group=num_group, kernel=(3, 3), pad=(1, 1), name='branch332')
+    tower_conv2_2 = Conv(tower_conv2_1, basefilter*6, num_group=num_group, kernel=(3, 3), pad=(1, 1), name='branch333')
     # Branch34: Pool-Conv11
     tower_pool3_0 = mx.symbol.Pooling(data=maxpool5a_3_3, kernel=(
         3, 3), stride=(1, 1), pad=(1, 1), pool_type='avg')
-    tower_conv3_1 = Conv(tower_pool3_0, basefilter*4, num_group=num_group_11, kernel=(1, 1))
+    tower_conv3_1 = Conv(tower_pool3_0, basefilter*4, num_group=num_group_11, kernel=(1, 1),name='branch34')
     # Concat
     tower_5b_out = mx.symbol.Concat(
         *[tower_conv, tower_conv1_1, tower_conv2_2, tower_conv3_1])
     
     # Repeat 1
     net = repeat(tower_5b_out, units[0], block35_irv2, scale=0.17, input_num_channels=basefilter*20,\
-                basefilter=basefilter, num_group=num_group ,num_group_11=num_group_11)
+                basefilter=basefilter, num_group=num_group ,num_group_11=num_group_11, name='repeat1')
     
     # Size 35
     
     # Branch 41
-    tower_conv = Conv(net, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2))
+    tower_conv = Conv(net, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2), name='branch41')
     # Branch 42
-    tower_conv1_0 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1_0, basefilter*16, num_group=num_group, kernel=(3, 3), pad=(1, 1))
-    tower_conv1_2 = Conv(tower_conv1_1, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2))
+    tower_conv1_0 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1), name='branch421')
+    tower_conv1_1 = Conv(tower_conv1_0, basefilter*16, num_group=num_group, kernel=(3, 3), pad=(1, 1), name='branch422')
+    tower_conv1_2 = Conv(tower_conv1_1, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2), name='branch423')
     tower_pool = mx.symbol.Pooling(net, kernel=(
         3, 3), stride=(2, 2), pool_type='max')
     
@@ -230,21 +230,21 @@ def get_symbol_irv2(num_classes=1000,
     net = mx.symbol.Concat(*[tower_conv, tower_conv1_2, tower_pool])
     # Repeat 2
     net = repeat(net, units[1], block17_irv2, scale=0.1, input_num_channels=basefilter*68,\
-                basefilter=basefilter*2, num_group=num_group, num_group_11=num_group_11)
+                basefilter=basefilter*2, num_group=num_group, num_group_11=num_group_11,name='repeat2')
     
     
     # Size 17
     
     # Branch51: Conv11-Conv33
-    tower_conv = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1))
-    tower_conv0_1 = Conv(tower_conv, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2))
+    tower_conv = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1) ,name='branch511')
+    tower_conv0_1 = Conv(tower_conv, basefilter*24, num_group=num_group, kernel=(3, 3), stride=(2, 2) ,name='branch512')
     # Branch52: Conv11-Conv33 ? Is this XCeption
-    tower_conv1 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1))
-    tower_conv1_1 = Conv(tower_conv1, basefilter*18, num_group=num_group, kernel=(3, 3), stride=(2, 2))
+    tower_conv1 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1) ,name='branch521')
+    tower_conv1_1 = Conv(tower_conv1, basefilter*18, num_group=num_group, kernel=(3, 3), stride=(2, 2) ,name='branch522')
     # Branch53: Conv11-Conv33-Conv33
-    tower_conv2 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1))
-    tower_conv2_1 = Conv(tower_conv2, basefilter*18,  num_group=num_group, kernel=(3, 3), pad=(1, 1))
-    tower_conv2_2 = Conv(tower_conv2_1, basefilter*20,  num_group=num_group, kernel=(3, 3),  stride=(2, 2))
+    tower_conv2 = Conv(net, basefilter*16, num_group=num_group_11, kernel=(1, 1) ,name='branch531')
+    tower_conv2_1 = Conv(tower_conv2, basefilter*18,  num_group=num_group, kernel=(3, 3), pad=(1, 1) ,name='branch532')
+    tower_conv2_2 = Conv(tower_conv2_1, basefilter*20,  num_group=num_group, kernel=(3, 3),  stride=(2, 2) ,name='branch533')
     # Pool33
     tower_pool = mx.symbol.Pooling(net, kernel=(
         3, 3), stride=(2, 2), pool_type='max')
@@ -253,12 +253,12 @@ def get_symbol_irv2(num_classes=1000,
 
     # Size 8 
     net = repeat(net, units[2], block8_irv2, scale=0.2, input_num_channels=basefilter*130,\
-                basefilter=basefilter*2, num_group=num_group ,num_group_11=num_group_11)
+                basefilter=basefilter*2, num_group=num_group ,num_group_11=num_group_11,name='repeat3')
     net = block8_irv2(net, with_act=False, input_num_channels=basefilter*130,
-                     basefilter=basefilter*2, num_group=num_group ,num_group_11=num_group_11)
+                     basefilter=basefilter*2, num_group=num_group ,num_group_11=num_group_11,name='block8')
     
     # Trailing
-    net = Conv(net, basefilter*96, num_group=num_group_11, kernel=(1, 1))
+    net = Conv(net, basefilter*96, num_group=num_group_11, kernel=(1, 1), name='trailing')
     net = mx.symbol.Pooling(net, kernel=(
         1, 1), global_pool=True, stride=(2, 2), pool_type='avg')
     net = mx.symbol.Flatten(net)
@@ -270,15 +270,6 @@ def get_symbol_irv2(num_classes=1000,
 
 
 ######## Inception V4: Scalable, XCeptionized
-
-
-def Conv(data, num_filter, num_group = 1, kernel=(1, 1), stride=(1, 1), pad=(0, 0), name=None, suffix=''):
-    conv = mx.sym.Convolution(data=data, num_filter=num_filter, num_group=num_group, kernel=kernel, stride=stride, pad=pad, no_bias=True, name='%s%s_conv2d' %(name, suffix))
-    bn = mx.sym.BatchNorm(data=conv, name='%s%s_batchnorm' %(name, suffix), fix_gamma=True)
-    act = mx.sym.Activation(data=bn, act_type='relu', name='%s%s_relu' %(name, suffix))
-
-    return act
-
 
 def Inception_stem_V4(data, basefilter=32, stem_num_group=1, stem_num_group_11=1, name= None):
     
@@ -577,7 +568,7 @@ def Inception7D_V3(data,
     
     assert len(num_filters)==6
     
-    num_3x3_red, num_3x3,
+    num_3x3_red, num_3x3,\
                 num_d7_3x3_red, num_d7_1, num_d7_2, num_d7_3x3 = tuple(num_filters)
     
     # Branch 1: Conv11-Conv33
@@ -605,7 +596,7 @@ def Inception7E_V3(data,
     
     assert len(num_filters)==9
     
-    num_1x1, num_d3_red, num_d3_1, num_d3_2,
+    num_1x1, num_d3_red, num_d3_1, num_d3_2,\
                 num_3x3_d3_red, num_3x3, num_3x3_d3_1, num_3x3_d3_2, proj = tuple(num_filters)
     
     
@@ -661,59 +652,59 @@ def get_symbol_V3(num_classes=1000,
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed")
+                       pool="avg", name="mixed")
     in3b = Inception7A(in3a, 
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_1")
+                       pool="avg", name="mixed_1")
     in3c = Inception7A(in3b,
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_2")
+                       pool="avg", name="mixed_2")
     in3d = Inception7B(in3c,
                        basefilter=basefilter*2,
                        num_filters=[12,2,3,3],
                        num_group=num_group, num_group_11=num_group_11,
-                       "max", "mixed_3")
+                       pool="max", name="mixed_3")
     # Main Stage2
     in4a = Inception7C(in3d, 
                        basefilter=basefilter*2,
                        num_filters=[6,4,4,6,4,4,4,4,6,6],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_4")
+                       pool="avg", name="mixed_4")
     in4b = Inception7C(in4a, 
                        basefilter=basefilter*2,
                        num_filters=[6,5,5,6,5,5,5,5,6,6],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_5")
+                       pool="avg", name="mixed_5")
     in4c = Inception7C(in4b, 
                        basefilter=basefilter*2,
                        num_filters=[6,5,5,6,5,5,5,5,6,6],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_6")
+                       pool="avg", name="mixed_6")
     in4d = Inception7C(in4c,
                        basefilter=basefilter*2,
                        num_filters=[6,6,6,6,6,6,6,6,6,6],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_7")
+                       pool="avg", name="mixed_7")
     in4e = Inception7D(in4d, 
                        basefilter=basefilter*4,
                        num_filters=[3,5,3,3,3,3],
                        num_group=num_group, num_group_11=num_group_11,
-                       "max", "mixed_8")
+                       pool="max", name="mixed_8")
     # Main Stage3
     in5a = Inception7E(in4e,
                        basefilter=basefilter*4,
                        num_filters=[5,6,6,6,7,6,6,6,3],
                        num_group=num_group, num_group_11=num_group_11,
-                       "avg", "mixed_9")
+                       pool="avg", name="mixed_9")
     in5b = Inception7E(in5a, 
                        basefilter=basefilter*4,
                        num_filters=[5,6,6,6,7,6,6,6,3],
                        num_group=num_group, num_group_11=num_group_11,
-                       "max", "mixed_10")
+                       pool="max", name="mixed_10")
     # pool 
     pool = mx.sym.Pooling(data=in5b, kernel=(lastout, lastout), stride=(1, 1), pool_type="avg", name="global_pool") # last=8
     flatten = mx.sym.Flatten(data=pool, name="flatten")

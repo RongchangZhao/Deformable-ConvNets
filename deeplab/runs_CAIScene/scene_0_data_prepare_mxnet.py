@@ -49,7 +49,7 @@ with codecs.open('./train.lst','w',encoding='utf-8') as f:
         if idx%100==0:
             print idx
         i = int(d['label_id'])
-        f.write('{0}\t{1}\t{2}\n'.format(idx, i, d['image_id']))
+        f.write('{0}\t{1}\t{2}\n'.format(idx, i, 'train/'+d['image_id']))
 
         
 with codecs.open('./val.lst','w',encoding='utf-8') as f:
@@ -57,7 +57,7 @@ with codecs.open('./val.lst','w',encoding='utf-8') as f:
         if idx%100==0:
             print idx
         i = int(d['label_id'])
-        f.write('{0}\t{1}\t{2}\n'.format(idx, i, d['image_id']))
+        f.write('{0}\t{1}\t{2}\n'.format(idx, i, 'val/'+d['image_id']))
         
         
 with codecs.open('./trainval.lst','w',encoding='utf-8') as f:
@@ -65,13 +65,13 @@ with codecs.open('./trainval.lst','w',encoding='utf-8') as f:
         if idx%100==0:
             print idx
         i = int(d['label_id'])
-        f.write('{0}\t{1}\t{2}\n'.format(idx, i, d['image_id']))
+        f.write('{0}\t{1}\t{2}\n'.format(idx, i, 'train/'+d['image_id']))
     counter = len(trainList)
     for idx,d in enumerate(valList):
         if idx%100==0:
             print idx
         i = int(d['label_id'])
-        f.write('{0}\t{1}\t{2}\n'.format(idx+counter, i, d['image_id']))
+        f.write('{0}\t{1}\t{2}\n'.format(idx+counter, i, 'val/'+d['image_id']))
         
             
 
