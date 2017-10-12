@@ -412,8 +412,8 @@ def get_symbol_V4(num_classes=1000, \
             data = mx.sym.Cast(data=data, dtype=np.float16)
     x = Inception_stem_V4(data, 
                           basefilter=basefilter,
-                          num_group=num_group,
-                          num_group11=num_group_11,
+                          stem_num_group=num_group,
+                          stem_num_group_11=num_group_11,
                           name='in_stem')
 
     #4 * InceptionA By Default
@@ -422,14 +422,14 @@ def get_symbol_V4(num_classes=1000, \
         x = InceptionA_V4(x,
                           basefilter=basefilter,
                           num_group=num_group,
-                          num_group11=num_group_11,
+                          num_group_11=num_group_11,
                           name='in%dA' %(i+1))
 
     #Reduction A : Size 35-17
     x = ReductionA_V4(x,
                       basefilter=basefilter,
                       num_group=num_group,
-                      num_group11=num_group_11,
+                      num_group_11=num_group_11,
                       name='re1A')
 
     #7 * InceptionB By Default
@@ -438,14 +438,14 @@ def get_symbol_V4(num_classes=1000, \
         x = InceptionB_V4(x,
                           basefilter=basefilter,
                           num_group=num_group,
-                          num_group11=num_group_11,
+                          num_group_11=num_group_11,
                           name='in%dB' %(i+1))
 
     #ReductionB : Size 17-8
     x = ReductionB_V4(x,
                       basefilter=basefilter*2,
                       num_group=num_group,
-                      num_group11=num_group_11,
+                      num_group_11=num_group_11,
                       name='re1B')
 
     #3 * InceptionC By Default
@@ -454,7 +454,7 @@ def get_symbol_V4(num_classes=1000, \
         x = InceptionC_V4(x,
                           basefilter=basefilter*2,
                           num_group=num_group,
-                          num_group11=num_group_11,
+                          num_group_11=num_group_11,
                           name='in%dC' %(i+1))
 
     #Average Pooling
@@ -506,6 +506,7 @@ def Inception7A_V3(data,
 def Inception7B_V3(data,
                 basefilter=32, # Base=32
                 num_filters=[], # Length-4
+                num_group=1, num_group_11=1,
                 pool="max",
                 name=''):
     
@@ -529,6 +530,7 @@ def Inception7B_V3(data,
 def Inception7C_V3(data,
                 basefilter=32, 
                 num_filters=[], # Length-10
+                num_group=1, num_group_11=1,
                 pool = 'avg',
                 name = ''):
     
@@ -563,6 +565,7 @@ def Inception7C_V3(data,
 def Inception7D_V3(data,
                 basefilter=64, 
                 num_filters=[], # Length-6
+                num_group=1, num_group_11=1,
                 pool='max',
                 name=''):
     
@@ -591,6 +594,7 @@ def Inception7D_V3(data,
 def Inception7E_V3(data,
                 basefilter=64,
                 num_filters=[], # Length-9
+                num_group=1, num_group_11=1,
                 pool='max', 
                 name=''):
     
@@ -648,59 +652,59 @@ def get_symbol_V3(num_classes=1000,
     pool1 = mx.sym.Pooling(data=conv_4, kernel=(3, 3), stride=(2, 2), pool_type="max", name="pool1")
     # 35
     # Main Stage 1
-    in3a = Inception7A(pool1, 
+    in3a = Inception7A_V3(pool1, 
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed")
-    in3b = Inception7A(in3a, 
+    in3b = Inception7A_V3(in3a, 
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_1")
-    in3c = Inception7A(in3b,
+    in3c = Inception7A_V3(in3b,
                        basefilter=basefilter*1,
                        num_filters=[4,4,6,6,3,4,2],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_2")
-    in3d = Inception7B(in3c,
+    in3d = Inception7B_V3(in3c,
                        basefilter=basefilter*2,
                        num_filters=[12,2,3,3],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="max", name="mixed_3")
     # Main Stage2
-    in4a = Inception7C(in3d, 
+    in4a = Inception7C_V3(in3d, 
                        basefilter=basefilter*2,
                        num_filters=[6,4,4,6,4,4,4,4,6,6],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_4")
-    in4b = Inception7C(in4a, 
+    in4b = Inception7C_V3(in4a, 
                        basefilter=basefilter*2,
                        num_filters=[6,5,5,6,5,5,5,5,6,6],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_5")
-    in4c = Inception7C(in4b, 
+    in4c = Inception7C_V3(in4b, 
                        basefilter=basefilter*2,
                        num_filters=[6,5,5,6,5,5,5,5,6,6],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_6")
-    in4d = Inception7C(in4c,
+    in4d = Inception7C_V3(in4c,
                        basefilter=basefilter*2,
                        num_filters=[6,6,6,6,6,6,6,6,6,6],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_7")
-    in4e = Inception7D(in4d, 
+    in4e = Inception7D_V3(in4d, 
                        basefilter=basefilter*4,
                        num_filters=[3,5,3,3,3,3],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="max", name="mixed_8")
     # Main Stage3
-    in5a = Inception7E(in4e,
+    in5a = Inception7E_V3(in4e,
                        basefilter=basefilter*4,
                        num_filters=[5,6,6,6,7,6,6,6,3],
                        num_group=num_group, num_group_11=num_group_11,
                        pool="avg", name="mixed_9")
-    in5b = Inception7E(in5a, 
+    in5b = Inception7E_V3(in5a, 
                        basefilter=basefilter*4,
                        num_filters=[5,6,6,6,7,6,6,6,3],
                        num_group=num_group, num_group_11=num_group_11,

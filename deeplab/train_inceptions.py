@@ -27,12 +27,24 @@ if __name__ == '__main__':
     parser.set_defaults(
         
         # network
+        # irv2
         
-        basefilter=16,
-        num_group=1,
-        num_group_11=1,
-        scale=1.0,
-        units=[10,20,9],
+        #basefilter=16,
+        #num_group=1,
+        #num_group_11=1,
+        #scale=1.0,
+        #units=[10,20,9],
+        
+        #V4
+        #basefilter = 32,
+        #num_group = 1,
+        #num_group_11 = 1,
+        #units = [4,7,3],
+        
+        #V3
+        basefilter = 16,
+        num_group = 1,
+        num_group_11 = 1,
         
         # data
         num_classes = 80,
@@ -44,14 +56,14 @@ if __name__ == '__main__':
         # train
         num_epochs       = 100,
         lr               = 0.1,
-        lr_step_epochs   = '30,60,80',
+        lr_step_epochs   = '40,50,60',
         dtype            = 'float32',
         retrain          = 1,
         
         
         # load , please tune
-        load_ft_epoch       = 21,
-        model_ft_prefix     = '/data1/deepinsight/CAIScene/50ft320nude0003_9656'
+        load_ft_epoch       = 41,
+        model_ft_prefix     = 'irv2_299'
 
     )
     
@@ -103,7 +115,9 @@ if __name__ == '__main__':
     #net = import_module('symbols.'+args.network)
     # sym = net.get_symbol(**vars(args))
     
-    sym = get_symbol_irv2(**vars(args))
+    # sym = get_symbol_irv2(**vars(args))
+    # sym = get_symbol_V4(**vars(args))
+    sym = get_symbol_V3(**vars(args))
 
     # Init Parameters
     ctx = mx.cpu()
