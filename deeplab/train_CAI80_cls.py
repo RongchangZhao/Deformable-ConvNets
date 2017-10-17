@@ -2,7 +2,12 @@ import os
 import argparse
 import logging
 logging.basicConfig(level=logging.DEBUG)
-from common import find_mxnet, data, fit
+from common import find_mxnet, fit
+
+#from common import data
+
+import common.data as data
+
 from common.util import download_file
 import mxnet as mx
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
@@ -24,7 +29,7 @@ if __name__ == '__main__':
     parser.set_defaults(
         # network
         network          = 'irnext',
-        num_layers       = 50,
+        num_layers       = 152,
         outfeature       = 2048,
         bottle_neck      = 1,
         expansion        = 4, 
@@ -34,12 +39,18 @@ if __name__ == '__main__':
         deform           = 0,
         sqex             = 0,
         ratt             = 0,
+        usemaxavg        = 0,
+        scale            = 1, # 0.25, 
         block567         = 0,
         lmar             = 0,
         lmarbeta         = 1000,
         lmarbetamin      = 0,
         lmarscale        = 0.9997,
         # data
+        
+        train_image_root = '/data1/deepinsight/aichallenger/scene',
+        val_image_root = '/data1/deepinsight/aichallenger/scene',
+        
         num_classes      = 80,
         num_examples     = 53878,
         image_shape      = '3,224,224',
@@ -47,14 +58,16 @@ if __name__ == '__main__':
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
-        num_epochs       = 70,
+        num_epochs       = 100,
         lr               = 0.003,
-        lr_step_epochs   = '25,40',
-        dtype            = 'float32',
+        lr_step_epochs   = '30,60',
+        #dtype            = 'float32',
         
         # load , please tune
-        load_ft_epoch       = 21,
-        model_ft_prefix     = '/data1/deepinsight/CAIScene/50ft320nude0003_9656'
+        load_ft_epoch       = 50,
+        model_ft_prefix     = '/data1/deepinsight/CAIScene/ft224nude0003_97'
+        
+        
         
     )
     args = parser.parse_args()
@@ -80,7 +93,7 @@ if __name__ == '__main__':
         deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict, block567=args.block567)
     else:
-        args.lr_step_epochs = '30,65'
+        args.lr_step_epochs = '50,100'
     
     # train
     

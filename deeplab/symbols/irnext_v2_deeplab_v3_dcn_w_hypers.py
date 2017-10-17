@@ -30,7 +30,7 @@ from op.lsoftmax import LSoftmaxOp
 # Todo 1,2,4
 
 def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expansion=0.5, \
-                 num_group=32, dilation=1, irv2 = False, deform=1, sqex=1, ratt=0, 
+                 num_group=32, dilation=1, irv2 = False, deform=1, sqex=1, ratt=0, scale=1.0,
                  bn_mom=0.9, unitbatchnorm=True, workspace=256, memonger=False):
     
     """
@@ -116,7 +116,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
         if memonger:
             shortcut._set_attr(mirror_stage='True')
             
-        return conv2 + shortcut
+        return conv2 + shortcut * scale
         
     
     # If 1: Use ResNeXt Conv1,1-Conv3,3-Conv1,1 
@@ -203,7 +203,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
             ratt_scale = mx.sym.broadcast_mul(out, ratt)
             out = ratt_scale
             
-        return out + shortcut
+        return out + shortcut * scale
             
     elif bottle_neck == 2:
         # TODOOOOOOOOOOOOOOOOOOO
@@ -284,7 +284,7 @@ def irnext_unit(data, num_filter, stride, dim_match, name, bottle_neck=1, expans
 
         
 def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bottle_neck=1, \
-               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, 
+               lastout = 7, expansion = 0.5, dilpat = '', irv2 = False,  deform = 0, sqex=0, ratt=0, scale=1.0, usemaxavg=0,
                lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
            block567='',
            taskmode='CLS',
@@ -415,18 +415,26 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
             body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
                              name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
                              expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
-                             irv2 = irv2, deform = current_deform, sqex = sqex, ratt=ratt, 
+                             irv2 = irv2, deform = current_deform, sqex = sqex, ratt=ratt, scale=scale, 
                              bn_mom=bn_mom, workspace=workspace, memonger=memonger)
             for j in range(units[i]-1):
                 body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
                                  bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
                                  dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex, ratt=ratt,
-                                 bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+                                   scale=scale,
+                                   bn_mom=bn_mom, workspace=workspace, memonger=memonger)
         
         bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
         relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
-        pool1 = mx.sym.Pooling(data=relu1, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
-        flat = mx.sym.Flatten(data=pool1)
+        
+        if usemaxavg == 0:
+            pool1 = mx.sym.Pooling(data=relu1, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
+            flat = mx.sym.Flatten(data=pool1)
+        else:
+            pool1 = mx.sym.Pooling(data=relu1, global_pool=True, kernel=(lastout, lastout), pool_type='avg', name='pool1')
+            pool2 = mx.sym.Pooling(data=relu1, global_pool=True, kernel=(lastout, lastout), pool_type='max', name='pool2')
+            flat = mx.sym.Flatten(data=pool1*0.5+pool2*0.5)
+            
         fc1 = mx.sym.FullyConnected(data=flat, num_hidden=num_classes, name='fc1')
         
         return fc1
@@ -518,7 +526,7 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
    
         
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
-               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567='', 
+               num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt=0, block567='', scale=1.0, usemaxavg=0,
                lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
                conv_workspace=512,
                taskmode='CLS', decoder=False, seg_stride_mode='', dtype='float32', **kwargs):
@@ -643,6 +651,8 @@ def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion
                   sqex        = sqex, 
                   ratt        = ratt,
                   block567    = block567,
+                  usemaxavg   = usemaxavg,
+                  scale       = scale,
                   lmar        = lmar, 
                   lmarbeta    = lmarbeta,
                   lmarbetamin = lmarbetamin,
@@ -664,7 +674,7 @@ class irnext_deeplab_dcn():
     
     
     def __init__(self, num_classes , num_layers , outfeature, bottle_neck=1, expansion=0.5,\
-                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0,
+                num_group=32, lastout=7, dilpat='', irv2=False, deform=0, sqex = 0, ratt = 0, usemaxavg=0, scale=1.0, 
                  lmar = 0, lmarbeta=1, lmarbetamin=0, lmarscale=1,
                  block567='' , 
                  aspp = 0, usemax =0,
@@ -688,6 +698,8 @@ class irnext_deeplab_dcn():
         self.deform = deform
         self.sqex = sqex
         self.ratt = ratt
+        self.usemaxavg = usemaxavg
+        self.scale = scale
         self.lmar = lmar
         self.lmarbeta = lmarbeta
         self.lmarbetamin = lmarbetamin
@@ -721,6 +733,8 @@ class irnext_deeplab_dcn():
                           deform=self.deform, 
                           sqex=self.sqex,
                           ratt=self.ratt,
+                          usemaxavg=self.usemaxavg,
+                          scale=self.scale,
                           lmar=self.lmar,
                           lmarbeta=self.lmarbeta,
                           lmarbetamin=self.lmarbetamin,

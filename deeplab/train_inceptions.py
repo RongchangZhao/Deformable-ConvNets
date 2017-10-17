@@ -29,11 +29,11 @@ if __name__ == '__main__':
         # network
         # irv2
         
-        #basefilter=16,
-        #num_group=1,
-        #num_group_11=1,
-        #scale=1.0,
-        #units=[10,20,9],
+        basefilter=16,
+        num_group=1,
+        num_group_11=1,
+        scale=1.0,
+        units=[10,20,9],
         
         #V4
         #basefilter = 32,
@@ -42,21 +42,21 @@ if __name__ == '__main__':
         #units = [4,7,3],
         
         #V3
-        basefilter = 16,
-        num_group = 1,
-        num_group_11 = 1,
+        # basefilter = 16,
+        # num_group = 1,
+        # num_group_11 = 1,
         
         # data
         num_classes = 80,
-        num_examples = 53878,
+        num_examples = 480*365, # 53878
         image_shape = '3,299,299',
         lastout = 8,
         batch_size = 256,
         
         # train
-        num_epochs       = 100,
+        num_epochs       = 45,
         lr               = 0.1,
-        lr_step_epochs   = '40,50,60',
+        lr_step_epochs   = '24,32,40',
         dtype            = 'float32',
         retrain          = 1,
         
@@ -115,9 +115,9 @@ if __name__ == '__main__':
     #net = import_module('symbols.'+args.network)
     # sym = net.get_symbol(**vars(args))
     
-    # sym = get_symbol_irv2(**vars(args))
+    sym = get_symbol_irv2(**vars(args))
     # sym = get_symbol_V4(**vars(args))
-    sym = get_symbol_V3(**vars(args))
+    # sym = get_symbol_V3(**vars(args))
 
     # Init Parameters
     ctx = mx.cpu()
