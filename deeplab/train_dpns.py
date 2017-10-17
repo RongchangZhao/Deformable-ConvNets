@@ -37,9 +37,9 @@ if __name__ == '__main__':
         batch_size = 160,
         
         # train
-        num_epochs       = 60,
+        num_epochs       = 100,
         lr               = 0.1,
-        lr_step_epochs   = '24,32,40',
+        lr_step_epochs   = '24,40,56',
         dtype            = 'float32',
         retrain          = 0,
         

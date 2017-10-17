@@ -44,6 +44,10 @@ def CPMModel():
     relu4_1 = mx.symbol.Activation(name='relu4_1', data=conv4_1 , act_type='relu')
     conv4_2 = mx.symbol.Convolution(name='conv4_2', data=relu4_1 , num_filter=512, pad=(1,1), kernel=(3,3), stride=(1,1), no_bias=False)
     relu4_2 = mx.symbol.Activation(name='relu4_2', data=conv4_2 , act_type='relu')
+    
+    # Backbone Splitter
+    
+    
     conv4_3_CPM = mx.symbol.Convolution(name='conv4_3_CPM', data=relu4_2 , num_filter=256, pad=(1,1), kernel=(3,3), stride=(1,1), no_bias=False)
     relu4_3_CPM = mx.symbol.Activation(name='relu4_3_CPM', data=conv4_3_CPM , act_type='relu')
     conv4_4_CPM = mx.symbol.Convolution(name='conv4_4_CPM', data=relu4_3_CPM , num_filter=128, pad=(1,1), kernel=(3,3), stride=(1,1), no_bias=False)

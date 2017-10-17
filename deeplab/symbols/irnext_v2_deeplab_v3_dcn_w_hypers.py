@@ -383,7 +383,10 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         body = mx.sym.Concat(*[body1, body2, body3])
         '''
-        body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
+        if taskmode != "KEY":
+            body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
+        else:
+            body = mx.sym.Pooling(data=body, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type='max')
 
         # To avoid mean_rgb, use another BN-Relu
     # Unit Params List:
@@ -521,8 +524,34 @@ def irnext(inputdata, units, num_stages, filter_list, num_classes, num_group, bo
         
         return returnList
         
+    elif taskmode[:3] == "KEY":
+        ## TODO: CPM KEYPOINT HUMAN BODY MODEL
+        stride_plan = [1,2,1,1]
+        dilation_plan = [1,1,2,4] if dilpat not in dilation_dict else dilation_dict[dilpat]
+        
+        num_stages=4
         
         
+        for i in range(num_stages):
+            
+            current_deform = 0 if i!=(num_stages-1) else deform
+            
+            body = irnext_unit(body, filter_list[i+1], (stride_plan[i], stride_plan[i]), False,
+                             name='stage%d_unit%d' % (i + 1, 1), bottle_neck=bottle_neck, 
+                             expansion = expansion, num_group=num_group, dilation = dilation_plan[i],
+                             irv2 = irv2, deform = current_deform, sqex = sqex, ratt=ratt, scale=scale, 
+                             bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+            for j in range(units[i]-1):
+                body = irnext_unit(body, filter_list[i+1], (1,1), True, name='stage%d_unit%d' % (i + 1, j + 2),
+                                 bottle_neck=bottle_neck, expansion = expansion, num_group=num_group, 
+                                 dilation = dilation_plan[i], irv2 = irv2, deform = current_deform , sqex = sqex, ratt=ratt,
+                                   scale=scale,
+                                   bn_mom=bn_mom, workspace=workspace, memonger=memonger)
+        
+        bn1 = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
+        relu1 = mx.sym.Activation(data=bn1, act_type='relu', name='relu1')
+        
+        return relu1 # KEY BACKBONE
    
         
 def get_conv(data, num_classes, num_layers, outfeature, bottle_neck=1, expansion=0.5,
@@ -1382,6 +1411,12 @@ class irnext_deeplab_dcn():
         self.sym = group
         return group
     
+    
+    
+    def get_key_symbol():
+        # LALALALALA
+        return None
+        
     
 ######## To be debugged
         
