@@ -19,10 +19,11 @@ def _get_lr_scheduler(args, kv, MF=True):
         logging.info('Adjust learning rate to %e for epoch %d' %(lr, begin_epoch))
 
     steps = [epoch_size * (x-begin_epoch) for x in step_epochs if x-begin_epoch > 0]
+    
     if MF:
         return (lr, mx.lr_scheduler.MultiFactorScheduler(step=steps, factor=args.lr_factor))
     else:
-        return (lr, mx.lr_scheduler.MultiFactorScheduler(step=steps, factor=args.lr_factor))
+        return (lr, mx.lr_scheduler.FactorScheduler(int(0.75*epoch_size),args.lr_factor))
 
 def _load_model(args, rank=0):
     if 'load_epoch' not in args or args.load_epoch is None:
@@ -138,7 +139,7 @@ def fit(args, network, data_loader, **kwargs):
         mx.gpu(int(i)) for i in args.gpus.split(',')]
 
     # learning rate
-    lr, lr_scheduler = _get_lr_scheduler(args, kv)
+    lr, lr_scheduler = _get_lr_scheduler(args, kv, MF= True if (args.MF is None or args.MF!=0) else False )
 
     # create model
     model = mx.mod.Module(
@@ -147,6 +148,8 @@ def fit(args, network, data_loader, **kwargs):
     )
 
     lr_scheduler  = lr_scheduler
+    
+                
     optimizer_params = {
             'learning_rate': lr,
             'momentum' : args.mom,
@@ -154,7 +157,16 @@ def fit(args, network, data_loader, **kwargs):
             'lr_scheduler': lr_scheduler,
             #'multi_precision': True
             }
-
+    
+    if args.optimizer == 'rmsprop':
+        optimizer_params = {
+            'learning_rate': lr,
+            #'momentum' : args.mom,
+            #'wd' : args.wd,
+            'lr_scheduler': lr_scheduler,
+            #'multi_precision': True
+            }
+    
     monitor = mx.mon.Monitor(args.monitor, pattern=".*") if args.monitor > 0 else None
 
     if args.network == 'alexnet':

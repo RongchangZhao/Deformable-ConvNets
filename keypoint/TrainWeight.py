@@ -2,6 +2,9 @@ import sys
 sys.path.append('/data/guest_users/liangdong/liangdong/practice_demo')
 from modelCPMWeight import *
 from config.config import config
+from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
+from symbols.dpns import *
+
 
 class AIChallengerIterweightBatch:
     def __init__(self, datajson,
