@@ -1,9 +1,10 @@
 import sys
 sys.path.append('/data/guest_users/liangdong/liangdong/practice_demo')
-from modelCPMWeight import *
+from modelCPMWeight2 import *
 from config.config import config
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
 from symbols.dpns import *
+from symbols.inceptions import *
 
 
 class AIChallengerIterweightBatch:
@@ -87,6 +88,7 @@ class AIChallengerIterweightBatch:
             raise StopIteration
 
 start_prefix = 0
+
 class poseModule(mx.mod.Module):
 
     def fit(self, train_data, num_epoch, batch_size, carg_params=None, begin_epoch=0):
@@ -197,6 +199,8 @@ sym = ''
 if config.TRAIN.head == 'vgg':
     sym = CPMModel() 
 
+    
+    
 ## Load parameters from vgg
 warmupModel = '/data/guest_users/liangdong/liangdong/practice_demo/mxnet_CPM/model/vgg19'
 testsym, arg_params, aux_params = mx.model.load_checkpoint(warmupModel, 0)

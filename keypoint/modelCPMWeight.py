@@ -502,6 +502,9 @@ def CPMModel_test():
                              Mconv7_stage6_L1, Mconv7_stage6_L2])
     return group
 
+
+
+
 class DataBatchweight(object):
     def __init__(self, data, heatmaplabel, partaffinityglabel, heatweight, vecweight, pad=0):
         self.data = [data]

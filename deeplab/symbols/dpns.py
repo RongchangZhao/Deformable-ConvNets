@@ -15,8 +15,24 @@ inc_sec= {  2: 16, \
             4: 24, \
             5: 128 }
 
-def get_before_pool():
 
+
+
+#stride_plan = [1,2,1,1]
+#dilation_plan = [1,1,2,4]
+
+
+def get_before_pool(taskmode='CLS'):
+
+    
+    if taskmode == 'CLS' :
+        stride_plan = [1,2,2,2]
+        dilation_plan = [1,1,1,1]
+        
+    else taskmode == 'KEY' :
+        stride_plan = [1,2,1,1]
+        dilation_plan = [1,1,2,4]
+    
     ## define Dual Path Network
     data = mx.symbol.Variable(name="data")
 
@@ -29,38 +45,44 @@ def get_before_pool():
     bw = 256
     inc= inc_sec[2]
     R  = (k_R*bw)/256 
-    conv2_x_x  = DualPathFactory(     conv1_x_x,   R,   R,   bw,  'conv2_x__1',           inc,   G,  'proj'  )
+    conv2_x_x  = DualPathFactory(     conv1_x_x,   R,   R,   bw,  'conv2_x__1',           inc,   G,  'proj' if stride_plan[0]==1 else 'down', dilation = dilation_plan[0]  )
     for i_ly in range(2, k_sec[2]+1):
-        conv2_x_x  = DualPathFactory( conv2_x_x,   R,   R,   bw, ('conv2_x__%d'% i_ly),   inc,   G,  'normal')
+        conv2_x_x  = DualPathFactory( conv2_x_x,   R,   R,   bw, ('conv2_x__%d'% i_ly),   inc,   G,  'normal' , dilation = dilation_plan[0])
 
     # conv3
     bw = 512
     inc= inc_sec[3]
     R  = (k_R*bw)/256
-    conv3_x_x  = DualPathFactory(     conv2_x_x,   R,   R,   bw,  'conv3_x__1',           inc,   G,  'down'  )
+    conv3_x_x  = DualPathFactory(     conv2_x_x,   R,   R,   bw,  'conv3_x__1',           inc,   G,  'proj' if stride_plan[1]==1 else 'down' , dilation = dilation_plan[1] )
     for i_ly in range(2, k_sec[3]+1):
-        conv3_x_x  = DualPathFactory( conv3_x_x,   R,   R,   bw, ('conv3_x__%d'% i_ly),   inc,   G,  'normal')
+        conv3_x_x  = DualPathFactory( conv3_x_x,   R,   R,   bw, ('conv3_x__%d'% i_ly),   inc,   G,  'normal', dilation = dilation_plan[1] )
 
     # conv4
     bw = 1024
     inc= inc_sec[4]
     R  = (k_R*bw)/256
-    conv4_x_x  = DualPathFactory(     conv3_x_x,   R,   R,   bw,  'conv4_x__1',           inc,   G,  'down'  )
+    conv4_x_x  = DualPathFactory(     conv3_x_x,   R,   R,   bw,  'conv4_x__1',           inc,   G,  'proj' if stride_plan[2]==1 else 'down' , dilation = dilation_plan[2] )
     for i_ly in range(2, k_sec[4]+1):
-        conv4_x_x  = DualPathFactory( conv4_x_x,   R,   R,   bw, ('conv4_x__%d'% i_ly),   inc,   G,  'normal')
+        conv4_x_x  = DualPathFactory( conv4_x_x,   R,   R,   bw, ('conv4_x__%d'% i_ly),   inc,   G,  'normal' , dilation = dilation_plan[2] )
 
     # conv5
     bw = 2048
     inc= inc_sec[5]
     R  = (k_R*bw)/256
-    conv5_x_x  = DualPathFactory(     conv4_x_x,   R,   R,   bw,  'conv5_x__1',           inc,   G,  'down'  )
+    conv5_x_x  = DualPathFactory(     conv4_x_x,   R,   R,   bw,  'conv5_x__1',           inc,   G,  'proj' if stride_plan[3]==1 else 'down' , dilation = dilation_plan[3] )
     for i_ly in range(2, k_sec[5]+1):
-        conv5_x_x  = DualPathFactory( conv5_x_x,   R,   R,   bw, ('conv5_x__%d'% i_ly),   inc,   G,  'normal')
+        conv5_x_x  = DualPathFactory( conv5_x_x,   R,   R,   bw, ('conv5_x__%d'% i_ly),   inc,   G,  'normal' , dilation = dilation_plan[3] )
 
     # output: concat
     conv5_x_x  = mx.symbol.Concat(*[conv5_x_x[0], conv5_x_x[1]],  name='conv5_x_x_cat-final')
     conv5_x_x = BN_AC(conv5_x_x, name='conv5_x_x__relu-sp')
     return conv5_x_x
+
+
+def get_key():
+    before_pool = get_before_pool(taskmode=='KEY')
+    return before_pool
+
 
 def get_linear(num_classes = 1000):
     before_pool = get_before_pool()

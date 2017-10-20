@@ -170,6 +170,7 @@ def get_symbol_irv2(num_classes=1000,
                basefilter=16, num_group=1 ,num_group_11=1, scale=1.0,
                lastout = 8,
                units = [10,20,9],
+               taskmode = 'CLS',
                **kwargs):
     data = mx.symbol.Variable(name='data')
     # Size 299
@@ -259,14 +260,24 @@ def get_symbol_irv2(num_classes=1000,
     
     # Trailing
     net = Conv(net, basefilter*96, num_group=num_group_11, kernel=(1, 1), name='trailing')
-    net = mx.symbol.Pooling(net, kernel=(
+    
+    
+    
+    
+    if taskmode == 'CLS':
+    
+        net = mx.symbol.Pooling(net, kernel=(
         1, 1), global_pool=True, stride=(2, 2), pool_type='avg')
-    net = mx.symbol.Flatten(net)
-    net = mx.symbol.Dropout(data=net, p=0.2)
-    net = mx.symbol.FullyConnected(data=net, num_hidden=num_classes)
-    softmax = mx.symbol.SoftmaxOutput(data=net, name='softmax')
-    return softmax
-
+        net = mx.symbol.Flatten(net)
+        net = mx.symbol.Dropout(data=net, p=0.2)
+        net = mx.symbol.FullyConnected(data=net, num_hidden=num_classes)
+        softmax = mx.symbol.SoftmaxOutput(data=net, name='softmax')
+        
+        return softmax
+    
+    if taskmode == 'KEY':
+        
+        return net
 
 
 ######## Inception V4: Scalable, XCeptionized

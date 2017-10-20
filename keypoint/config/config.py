@@ -48,8 +48,14 @@ config.TRAIN.max_rotate_degree = 30
 
 config.TRAIN.scale_set = True
 
-config.TRAIN.head = 'vgg'
+# config.TRAIN.head = 'vgg'
 
+config.TRAIN.head = 'RES'
+
+# config.TRAIN.head = 'DPN'
+# config.TRAIN.head = 'IRV2'
+
+'''
 config.TRAIN.vggparams = ['conv1_1_weight',
                           'conv1_1_bias',
                           'conv1_2_weight',
@@ -70,3 +76,4 @@ config.TRAIN.vggparams = ['conv1_1_weight',
                           'conv4_1_bias',
                           'conv4_2_weight',
                           'conv4_2_bias']
+'''

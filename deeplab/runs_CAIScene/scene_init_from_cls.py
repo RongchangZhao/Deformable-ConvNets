@@ -33,7 +33,9 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
     aux_shape_dict = dict(zip(aux_name, aux_shape))
 
     
-    deeplab_args = dict({k:deeplab_args[k] for k in deeplab_args if 'fc' not in k})
+    deeplab_args = dict({k:deeplab_args[k] for k in deeplab_args if (('fc' not in k) and ('fullyconnected' not in k)) })
+    
+    print deeplab_args.keys()
     
     for k,v in deeplab_args.items():
         if(v.context != ctx):

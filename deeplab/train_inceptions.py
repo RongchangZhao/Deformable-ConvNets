@@ -48,22 +48,22 @@ if __name__ == '__main__':
         
         # data
         num_classes = 80,
-        num_examples = 480*365, # 53878
+        num_examples = 53878, # 
         image_shape = '3,299,299',
         lastout = 8,
         batch_size = 256,
         
         # train
-        num_epochs       = 45,
+        num_epochs       = 100,
         lr               = 0.1,
         lr_step_epochs   = '24,32,40',
         dtype            = 'float32',
-        retrain          = 1,
-        
+        retrain          = 0,
+        MF               = 1,
         
         # load , please tune
-        load_ft_epoch       = 41,
-        model_ft_prefix     = 'irv2_299'
+        load_ft_epoch       = 76,
+        model_ft_prefix     = '/data1/deepinsight/CAIScene/irv2models/inception1'
 
     )
     
@@ -123,10 +123,20 @@ if __name__ == '__main__':
     ctx = mx.cpu()
     
     if args.retrain == 1: # 1 From Scratch 0 FT
+        
         fit.fit(args, sym, data.get_rec_iter)
     else:
-        args.lr_step_epochs = '5,10'
+        args.lr_step_epochs = '36,54'
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
+        data_shape_dict = {'data': (args.batch_size, 3, 299, 299), 
+                       'softmax_label': (args.batch_size,)}
+        
+        if args.model_ft_prefix[0] == '/':
+            deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
+                            sym, deeplab_args, deeplab_auxs, data_shape_dict)
+        else:
+            args.lr_step_epochs = '20,50'
+            
         fit.fit(args, sym, data.get_rec_iter, arg_params=deeplab_args,aux_params=deeplab_auxs)
         
         

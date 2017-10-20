@@ -40,7 +40,7 @@ if __name__ == '__main__':
         num_epochs       = 100,
         lr               = 0.1,
         lr_step_epochs   = '24,40,56',
-        MF               = 0, # 1 by Default
+        MF               = 1, # 1 by Default
         optimizer        = 'sgd',
         dtype            = 'float32',
         retrain          = 0,
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     if args.retrain == 1: # 1 From Scratch 0 FT
         fit.fit(args, sym, data.get_rec_iter)
     else:
-        args.lr_step_epochs = '30,40,50'
+        args.lr_step_epochs = '24,48'
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
         data_shape_dict = {'data': (args.batch_size, 3, 320, 320), 
                        'softmax_label': (args.batch_size,)}
