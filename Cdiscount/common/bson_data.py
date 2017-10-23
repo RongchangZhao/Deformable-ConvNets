@@ -181,7 +181,7 @@ class BsonImageIter(io.DataIter):
         if self.shuffle:
           random.shuffle(self.seq)
         self.cur = [0,0]
-        self.inputf.seek(0)
+        #self.inputf.seek(0)
 
     def _next_sample(self):
         """Helper function for reading in next sample."""
