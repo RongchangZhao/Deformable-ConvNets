@@ -31,7 +31,7 @@ if __name__ == '__main__':
         
         # data
         num_classes = 80,
-        num_examples = 53878, # 53878
+        num_examples = 53879, # 53878
         image_shape = '3,320,320',
         lastout = 10,
         batch_size = 160,
@@ -65,6 +65,8 @@ if __name__ == '__main__':
     # sym = get_symbol_V4(**vars(args))
     # sym = get_symbol_V3(**vars(args))
 
+    print sym
+    
     # Init Parameters
     ctx = mx.cpu()
     
@@ -73,13 +75,15 @@ if __name__ == '__main__':
     else:
         args.lr_step_epochs = '24,48'
         _ , deeplab_args, deeplab_auxs = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
-        data_shape_dict = {'data': (args.batch_size, 3, 320, 320), 
+        data_shape_dict = {'data': (args.batch_size, 3, 224, 224), 
                        'softmax_label': (args.batch_size,)}
-        if args.model_ft_prefix[0] == '/':
+        if 'dpn92-365std' in args.model_ft_prefix:
             deeplab_args, deeplab_auxs = runs_CAIScene.scene_init_from_cls.init_from_irnext_cls(ctx, \
                             sym, deeplab_args, deeplab_auxs, data_shape_dict)
+            print "Initialized From Pretrained"
         else:
             args.lr_step_epochs = '20,50'
+            
             
         fit.fit(args, sym, data.get_rec_iter, arg_params=deeplab_args,aux_params=deeplab_auxs)
         

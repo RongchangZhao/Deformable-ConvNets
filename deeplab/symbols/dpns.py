@@ -29,7 +29,7 @@ def get_before_pool(taskmode='CLS'):
         stride_plan = [1,2,2,2]
         dilation_plan = [1,1,1,1]
         
-    else taskmode == 'KEY' :
+    elif taskmode == 'KEY' :
         stride_plan = [1,2,1,1]
         dilation_plan = [1,1,2,4]
     
@@ -80,14 +80,14 @@ def get_before_pool(taskmode='CLS'):
 
 
 def get_key():
-    before_pool = get_before_pool(taskmode=='KEY')
+    before_pool = get_before_pool(taskmode='KEY')
     return before_pool
 
 
 def get_linear(num_classes = 1000):
     before_pool = get_before_pool()
     # - - - - -
-    pool5     = mx.symbol.Pooling(data=before_pool, pool_type="avg", kernel=(7, 7), stride=(1,1), name="pool5")
+    pool5     = mx.symbol.Pooling(data=before_pool, pool_type="avg", global_pool='True', kernel=(7, 7), stride=(1,1), name="pool5")
     flat5     = mx.symbol.Flatten(data=pool5, name='flatten')
     fc6       = mx.symbol.FullyConnected(data=flat5, num_hidden=num_classes, name='fc6')
     return fc6

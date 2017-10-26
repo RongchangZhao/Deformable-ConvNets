@@ -62,7 +62,7 @@ if __name__ == '__main__':
         MF               = 1,
         
         # load , please tune
-        load_ft_epoch       = 76,
+        load_ft_epoch       = 121,
         model_ft_prefix     = '/data1/deepinsight/CAIScene/irv2models/inception1'
 
     )
