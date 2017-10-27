@@ -6,7 +6,7 @@ import random
 import logging
 logging.basicConfig(level=logging.DEBUG)
 #from common import find_mxnet
-from common import data
+import common.data_cotrain as data
 #from common import fit
 import mxnet as mx
 import mxnet.optimizer as optimizer
@@ -186,7 +186,7 @@ if __name__ == "__main__":
                         help='retrain')
     # use less augmentations for fine-tune
     data.set_data_aug_level(parser, 2)
-    parser.set_defaults(data_dir="./data", top_k=3, kv_store='device', data_nthreads=15)
+    parser.set_defaults(data_dir="/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene", top_k=3, kv_store='device', data_nthreads=15)
     #parser.set_defaults(model_prefix="", data_nthreads=15, batch_size=64, num_classes=263, gpus='0,1,2,3')
     #parser.set_defaults(image_shape='3,320,320', num_epochs=32,
     #                    lr=.0001, lr_step_epochs='12,20,24,28', wd=0, mom=0.9, lr_factor=0.5)
@@ -203,9 +203,9 @@ if __name__ == "__main__":
     #args.train_lst = os.path.join(args.data_dir, 'train.lst')
     #args.val_lst = os.path.join(args.data_dir, 'val.lst')
     #if args.retrain:
-    args.train_lst = os.path.join(args.data_dir, 'train2.lst')
-    args.train_lst2 = os.path.join(args.data_dir, 'place365_train14.lst')
-    args.val_lst = os.path.join(args.data_dir, 'val2.lst')
+    args.train_lst = os.path.join(args.data_dir, 'trainval9.lst')
+    args.train_lst2 = os.path.join(args.data_dir, 'place365_challenge.lst')
+    args.val_lst = os.path.join(args.data_dir, 'val1.lst')
 
     kv = mx.kvstore.create(args.kv_store)
     train, val = data.get_rec_iter(args, kv)
