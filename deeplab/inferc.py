@@ -18,30 +18,22 @@ from easydict import EasyDict as edict
 
 parser = argparse.ArgumentParser(description="",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--test-lst', type=str, default='./data/test_a.lst',
+parser.add_argument('--test-lst', type=str, default='test_a.lst',
     help='')
-parser.add_argument('--val-lst', type=str, default='./data/val.lst',
+parser.add_argument('--val-lst', type=str, default='val.lst',
     help='')
 parser.add_argument('--val-root-path', type=str, default='/data1/deepinsight/aichallenger/scene/')
-parser.add_argument('--test-root-path', type=str, default='/data1/deepinsight/aichallenger/scene/')
-parser.add_argument('--gpu', type=int, default=0,
-    help='')
-parser.add_argument('--gpus', type=str, default='0,1,2,3,4,5,6,7',
-    help='')
-parser.add_argument('--num-classes', type=int, default=80,
-    help='')
-parser.add_argument('--batch-size', type=int, default=128,
-    help='')
-parser.add_argument('--mode', type=int, default=0,
-    help='')
-parser.add_argument('--mean-max', action="store_true",
-    help='')
-parser.add_argument('--expand', type=int, default=8,
-    help='')
-parser.add_argument('--size', type=str, default='448,504')
-#parser.add_argument('--size', type=str, default='224,256')
-parser.add_argument('--step', type=int, default=-40,
-    help='if negative, use random crops')
+parser.add_argument('--test-root-path', type=str, default='/data1/deepinsight/aichallenger/scene/ai_challenger_scene_test_a_20170922/scene_test_a_images_20170922/')
+parser.add_argument('--gpu', type=int, default=0,help='')
+parser.add_argument('--num-classes', type=int, default=80,help='')
+parser.add_argument('--batch-size', type=int, default=32,help='')
+parser.add_argument('--mode', type=int, default=0, help='')
+parser.add_argument('--mean-max', action="store_true", help='')
+parser.add_argument('--cotrain', action="store_true", help='')
+parser.add_argument('--expand', type=int, default=12, help='')
+#parser.add_argument('--rgb-mean', type=str, default='123.68,116.779,103.939', help='set to empty if no mean used')
+parser.add_argument('--rgb-mean', type=str, default='', help='set to empty if no mean used')
+parser.add_argument('--layer', type=str, default='flatten0', help='') #flatten0
 #parser.add_argument('--model', type=str, default='./model/ft448deformsqex0.0001_9682,3|./model/sft320deformsqex_9692,1')
 #parser.add_argument('--model', type=str, default='./model/sft320deformsqex_9692,1')
 #parser.add_argument('--model', type=str, default='./model/ft224deformsqex0003_9587,20')
@@ -56,10 +48,13 @@ parser.add_argument('--step', type=int, default=-40,
 #parser.add_argument('--model', type=str, default='./model/sft448from32097nude00003_9740,11,448')
 #parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224|./model/sft448from32097nude00003_9740,11,448')
 #parser.add_argument('--model', type=str, default='./model/sft448from32097nude00003_9740,11,448|./model/ft224nude0003_97,50,224')
-#parser.add_argument('--model', type=str, default='./model/sft448from32097nude00003_9740,11,448')
-parser.add_argument('--model', type=str, default='/data1/deepinsight/CAIScene/coclgtv90002_975,15,224')
-parser.add_argument('--output-dir', type=str, default='./rt224_e8',
-    help='')
+#parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224')
+parser.add_argument('--model', type=str, default='/data1/deepinsight/CAIScene/co320clgtv90001_9769,44,384')  
+#/data1/deepinsight/CAIScene/co320clgtv90001_9769,44,320
+#/data1/deepinsight/CAIScene/coclgtv90002_975,15,224
+#/data1/deepinsight/CAIScene/dpn92_9613,3,320
+#parser.add_argument('--model', type=str, default='./model/irv2ft1,40,299')
+parser.add_argument('--output', type=str, default='./224e8', help='')
 args = parser.parse_args()
 
 def prt(msg):
@@ -83,6 +78,12 @@ def read_image(path):
 
 def image_preprocess2(img, crop_sz, expandid, blockid, cornerid, flipid):
   nd_img = nd.array(img)
+  if len(args.rgb_mean)>0:
+    rgb_mean = [float(x) for x in args.rgb_mean.split(',')]
+    rgb_mean = np.array(rgb_mean, dtype=np.float32).reshape(1,1,3)
+    rgb_mean = nd.array(rgb_mean)
+    nd_img -= rgb_mean
+    nd_img *= 0.0078125
   #expand = 32
   #if crop_sz<300:
   #  expand = 16
@@ -158,15 +159,16 @@ if args.mode>0:
 else:
   args.root_path = args.val_root_path
   args.lst = args.val_lst
-args.crop_size = int(args.size.split(',')[0])
-args.resize = int(args.size.split(',')[1])
 
 
 #ctxs = [mx.gpu(int(i)) for i in args.gpus.split(',')]
 
 nets = []
 gpuid = args.gpu
-ctx = mx.gpu(gpuid)
+if gpuid>=0:
+  ctx = mx.gpu(gpuid)
+else:
+  ctx = mx.cpu()
 for model_str in args.model.split('|'):
   vec = model_str.split(',')
   assert len(vec)>1
@@ -178,6 +180,14 @@ for model_str in args.model.split('|'):
   net.crop_sz = crop_sz
   net.ctx = ctx
   net.sym, net.arg_params, net.aux_params = mx.model.load_checkpoint(prefix, epoch)
+  all_symbols = net.sym.get_internals()
+  print all_symbols
+  net.sym = all_symbols[args.layer+'_output']
+  if args.cotrain:
+    body = all_symbols[args.layer+'_output']
+    fc1 = mx.sym.FullyConnected(data=body, num_hidden=args.num_classes, name='fc1')
+    softmax = mx.sym.SoftmaxOutput(data=fc1, name='softmax')
+    net.sym = softmax
   if args.mean_max:
     print('use mean_max')
     all_symbols = net.sym.get_internals()
@@ -189,10 +199,10 @@ for model_str in args.model.split('|'):
     fc1 = mx.sym.FullyConnected(data=flat, num_hidden=args.num_classes, name='fc1')
     softmax = mx.sym.SoftmaxOutput(data=fc1, name='softmax')
     net.sym = softmax
-    #print(all_symbols)
   net.arg_params, net.aux_params = ch_dev(net.arg_params, net.aux_params, net.ctx)
   nets.append(net)
-  gpuid+=1
+
+assert len(nets)==1
 
 imgs = []
 i = 0
@@ -213,13 +223,13 @@ for line in open(args.lst, 'r'):
 #  models.append(model)
 
 
-X = np.zeros( (len(imgs), args.num_classes) , dtype=np.float32 )
+#X = np.zeros( (len(imgs), args.num_classes) , dtype=np.float32 )
+X = None
 
 num_batches = int( math.ceil(len(imgs) / args.batch_size) )
 print("num_batches %d" % num_batches)
-if not os.path.exists(args.output_dir):
-  os.makedirs(args.output_dir)
 
+crop_id = 0
 for expandid in xrange(0,1):
   for blockid in [0,1,2]:
     for cornerid in xrange(0,6):
@@ -273,54 +283,20 @@ for expandid in xrange(0,1):
             #print(net_out.shape)
 
             for bz in xrange(current_batch_sz):
-              probs = net_out[bz,:]
-              score = np.squeeze(probs)
-              score *= score_weight
-              #print(score.shape)
+              #print net_out.shape
+              feature = np.squeeze(net_out[bz,:])
+              if X is None:
+                X = np.zeros( (len(imgs), 36, len(feature)), dtype=np.float32 )
+                print('init X',X.shape)
               #print(score)
               im_id = ids[bz]
-              X[im_id,:] += score
+              X[im_id, crop_id, :] = feature
+              #print('set',im_id, crop_id, feature.shape)
 
           batch_head += current_batch_sz
           batch_num += 1
-        val(X, imgs)
-        out_filename = os.path.join(args.output_dir, 'result.hdf')
-        print(out_filename)
-        if os.path.exists(out_filename):
-          print("exists, delete first..")
-          os.remove(out_filename)
-        _X = X
-        print("_X row sum %f" % np.sum(_X[0]))
-        df = pd.DataFrame(_X)
-        df.to_hdf(out_filename, "result")
+        crop_id+=1
+        #np.save(args.output, X)
 
-
-
-top1 = 0
-top5 = 0
-if args.mode==0:
-  val(X, imgs)
-else:
-  if not os.path.exists(args.output_dir):
-    os.makedirs(args.output_dir)
-  with open(os.path.join(args.output_dir,'result.json'), 'w') as opfile:
-    json_data = []
-    for ii in range(X.shape[0]):
-      score = X[ii]
-      #print("%d sum %f" % (ii, _sum))
-      sort_index = np.argsort(score)[::-1]
-      top_k = list(sort_index[0:3])
-      _data = {'image_id' : imgs[ii][2].split('/')[-1], 'label_id': top_k}
-      json_data.append(_data)
-    opfile.write(json.dumps(json_data))
-
-  out_filename = os.path.join(args.output_dir, 'result.hdf')
-  print(out_filename)
-  if os.path.exists(out_filename):
-    print("exists, delete first..")
-    os.remove(out_filename)
-  _X = X
-  print("_X row sum %f" % np.sum(_X[0]))
-  df = pd.DataFrame(_X)
-  df.to_hdf(out_filename, "result")
+np.save(args.output, X)
 

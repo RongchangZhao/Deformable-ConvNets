@@ -1,10 +1,11 @@
 import sys
-sys.path.append('/data/guest_users/liangdong/liangdong/practice_demo')
+sys.path.append('./')
 from modelCPMWeight2 import *
 from config.config import config
 from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
 from symbols.dpns import *
 from symbols.inceptions import *
+import argparse
 
 
 class AIChallengerIterweightBatch:
@@ -195,21 +196,190 @@ class poseModule(mx.mod.Module):
         text_file.write(' '.join([str(i) for i in losserror_list]))
         text_file.close()
         
-sym = ''
-if config.TRAIN.head == 'vgg':
-    sym = CPMModel() 
+
+
+def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_auxs, data_shape_dict, block567=False):
+    
+    deeplab_args = irnext_cls_args.copy()
+    deeplab_auxs = irnext_cls_args.copy()
+    
+    arg_name = irnext_cls_symbol.list_arguments()
+    aux_name = irnext_cls_symbol.list_auxiliary_states()
+    arg_shape, _, aux_shape = irnext_cls_symbol.infer_shape(**data_shape_dict)
+    arg_shape_dict = dict(zip(arg_name, arg_shape))
+    aux_shape_dict = dict(zip(aux_name, aux_shape))
 
     
+    deeplab_args = dict({k:deeplab_args[k] for k in deeplab_args if (('fc' not in k) and ('fullyconnected' not in k)) })
     
-## Load parameters from vgg
-warmupModel = '/data/guest_users/liangdong/liangdong/practice_demo/mxnet_CPM/model/vgg19'
-testsym, arg_params, aux_params = mx.model.load_checkpoint(warmupModel, 0)
+    print deeplab_args.keys()
+    
+    for k,v in deeplab_args.items():
+        if(v.context != ctx):
+            deeplab_args[k] = mx.nd.zeros(v.shape, ctx)
+            v.copyto(deeplab_args[k])
+        if k.startswith('fc6_'):
+            if k.endswith('_weight'):
+                print('initializing',k)
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+            elif k.endswith('_bias'):
+                print('initializing',k)
+                deeplab_args[k] = mx.nd.zeros(shape=v)
+        if block567:
+            if k.startswith('stage'):
+                stage_id = int(k[5])
+            if stage_id>4:
+                rk = "stage4"+k[6:]
+                if rk in irnext_cls_args:
+                    print('initializing', k, rk)
+                    if arg_shape_dict[rk]==v:
+                        deeplab_args[k] = deeplab_args[rk].copy()
+                    else:
+                        if k.endswith('_beta'):
+                            deeplab_args[k] = mx.nd.zeros(shape=v)
+                        elif k.endswith('_gamma'):
+                            deeplab_args[k] = mx.nd.random_uniform(shape=v)
+                        else:
+                            deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+        if 'se' in k:
+            deeplab_args[k] = mx.nd.zeros(shape=v)
+        if 'offset' in k:
+            if 'weight' in k:
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+            elif 'bias' in k:
+                deeplab_args[k] = mx.nd.zeros(shape=v)
+        
+        
+        
+    for k,v in deeplab_auxs.items():
+        if(v.context != ctx):
+            deeplab_auxs[k] = mx.nd.zeros(v.shape, ctx)
+            v.copyto(deeplab_auxs[k])
+        if block567:
+            if k.startswith('stage'):
+                stage_id = int(k[5])
+            if stage_id>4:
+                rk = "stage4"+k[6:]
+                if rk in irnext_cls_auxs:
+                    print('initializing', k, rk)
+                    if aux_shape_dict[rk]==v:
+                        deeplab_args[k] = deeplab_args[rk].copy()
+                    else:
+                        if k.endswith('_beta'):
+                            deeplab_args[k] = mx.nd.zeros(shape=v)
+                        elif k.endswith('_gamma'):
+                            deeplab_args[k] = mx.nd.random_uniform(shape=v)
+                        else:
+                            deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+        if 'se' in k:
+            deeplab_args[k] = mx.nd.zeros(shape=v)
+        if 'offset' in k:
+            if 'weight' in k:
+                deeplab_args[k] = mx.random.normal(0, 0.01, shape=v)
+            elif 'bias' in k:
+                deeplab_args[k] = mx.nd.zeros(shape=v)
+
+    
+    data_shape=(32,3,368,368)
+    arg_names = irnext_cls_symbol.list_arguments()
+    print arg_names
+    print "Step"
+    arg_shapes, _, _ = irnext_cls_symbol.infer_shape(**data_shape_dict) # data=data_shape
+    print zip(arg_names,arg_shapes)
+    rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)
+            if x[0] in ['score_weight', 'score_bias', 'score_pool4_weight', 'score_pool4_bias', \
+                        'score_pool3_weight', 'score_pool3_bias', 'score_0_weight', 'score_0_bias', \
+                        'score_1_weight', 'score_1_bias', 'score_2_weight', 'score_2_bias', \
+                        'score_3_weight', 'score_3_bias']])
+    deeplab_args.update(rest_params)
+    print "Step"
+    deconv_params = dict([(x[0], x[1]) for x in zip(arg_names, arg_shapes)
+            if x[0] in ["upsampling_weight"]])
+    
+    for k, v in deconv_params.items():
+        filt = upsample_filt(v[3])
+        initw = np.zeros(v)
+        initw[range(v[0]), range(v[1]), :, :] = filt  # becareful here is the slice assing
+        deeplab_args[k] = mx.nd.array(initw, ctx)
+    
+    return deeplab_args, deeplab_auxs
+        
+        
+## MAKE SYMBOL
+
+parser = argparse.ArgumentParser(description="train imagenet1k",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.set_defaults(
+        # network
+        network          = 'irnext',
+        num_layers       = 152,
+        outfeature       = 2048,
+        bottle_neck      = 1,
+        expansion        = 4, 
+        num_group        = 1,
+        dilpat           = '',#'DEEPLAB.HEAD', 
+        irv2             = False, 
+        deform           = 0,
+        sqex             = 0,
+        ratt             = 0,
+        usemaxavg        = 0,
+        scale            = 1, # 0.25, 
+        block567         = 0,
+        lmar             = 0,
+        lmarbeta         = 1000,
+        lmarbetamin      = 0,
+        lmarscale        = 0.9997,
+        # data
+        
+        train_image_root = '/data1/deepinsight/aichallenger/scene',
+        val_image_root = '/data1/deepinsight/aichallenger/scene',
+        
+        #num_classes      = 80,
+        #num_examples     = 53878,
+        #image_shape      = '3,224,224',
+        #lastout          = 7,
+        min_random_scale = 1.0 , # if input image has min size k, suggest to use
+                              # 256.0/x, e.g. 0.533 for 480
+        # train
+        batch_size       = 32,
+        num_epochs       = 100,
+        lr               = 0.003,
+        lr_step_epochs   = '30,60',
+        #dtype            = 'float32',
+        
+        # load , please tune
+    
+        load_ft_epoch       = 0,
+        model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-50L64X1D4XP'
+            
+)
+
+args = parser.parse_args()
+
+sym = CPMModel(**vars(args)) 
+
+## Load parameters from RESNET
+_ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
+
+## Init
+ctx = mx.cpu()
+data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
+                   'heatmaplabel': (args.batch_size, numofparts, 46, 46), \
+                   'partaffinityglabel': (args.batch_size, numoflinks*2, 46, 46),
+                   'heatweight': (args.batch_size, numofparts, 46, 46),
+                   'vecweight': (args.batch_size, numoflinks*2, 46, 46)}
+arg_params, aux_params = init_from_irnext_cls(ctx, \
+                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
+
+'''
 newargs = {}
 for ikey in config.TRAIN.vggparams:
     newargs[ikey] = arg_params[ikey]
+'''
 
-batch_size = 10
-aidata = AIChallengerIterweightBatch('pose_io/AI_data_val.json', # 'pose_io/COCO_data.json',
+batch_size = args.batch_size
+aidata = AIChallengerIterweightBatch('pose_io/AI_data_train.json', # 'pose_io/COCO_data.json',
                           'data', (batch_size, 3, 368, 368),
                           ['heatmaplabel','partaffinityglabel','heatweight','vecweight'],
                           [(batch_size, numofparts, 46, 46),
@@ -217,6 +387,8 @@ aidata = AIChallengerIterweightBatch('pose_io/AI_data_val.json', # 'pose_io/COCO
                            (batch_size, numofparts, 46, 46),
                            (batch_size, numoflinks*2, 46, 46)])
 
+# 
+print "Start Pose Module"
 cmodel = poseModule(symbol=sym, context=mx.cpu(),
                     label_names=['heatmaplabel',
                                  'partaffinityglabel',
@@ -224,12 +396,18 @@ cmodel = poseModule(symbol=sym, context=mx.cpu(),
                                  'vecweight'])
 starttime = time.time()
 
+print sym
+
 '''
 output_prefix = config.TRAIN.output_model
 testsym, newargs, aux_params = mx.model.load_checkpoint(output_prefix, start_prefix)
 '''
 iteration = 3
-cmodel.fit(aidata, num_epoch = iteration, batch_size = batch_size, carg_params = newargs)
+
+print "Start Fit"
+cmodel.fit(aidata, num_epoch = iteration, batch_size = batch_size, carg_params = arg_params)
+print "End Fit "
+
 cmodel.save_checkpoint(config.TRAIN.output_model, start_prefix + iteration)
 endtime = time.time()
 

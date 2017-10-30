@@ -16,8 +16,12 @@ from numpy import linalg as LA
 import cv2
 pylab.rcParams['figure.figsize'] = (10.0, 8.0)
 
-path1 = '/data/guest_users/liangdong/liangdong/practice_demo/AIchallenger/keypoint_validation_annotations_20170911.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
-trainimagepath = '/data/guest_users/liangdong/liangdong/practice_demo/AIchallenger/validation_image/keypoint_validation_images_20170911/'
+#path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_annotations_20170909.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
+#trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_images_20170902/'
+
+path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_annotations_20170911.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
+trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_images_20170911/'
+
 
 jointall = []
 count = 1

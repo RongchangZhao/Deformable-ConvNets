@@ -12,7 +12,7 @@ from symbols.inceptions import *
 numofparts = 15
 numoflinks = 13
 
-def CPMModel_FT(use_pretrained = 'RES',**kwargs):
+def CPMModel(use_pretrained = 'RES', num_layers=152, outfeature=2048, **kwargs):
     
     """
     use_pretrained options: 
@@ -33,15 +33,15 @@ def CPMModel_FT(use_pretrained = 'RES',**kwargs):
     
     
     if use_pretrained == 'RES':
-        relu4_2 = irnext_v2_deeplab_v3_dcn_w_hypers.get_conv(data,
+        relu4_2 = get_conv(data,
                            0,
-                           self.num_layers,
-                           self.outfeature,
+                           num_layers,
+                           outfeature,
                            taskmode='KEY'
                            )
     
     
-    
+    #print relu4_2
     # Backbone Splitter
     
     

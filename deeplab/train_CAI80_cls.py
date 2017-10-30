@@ -66,9 +66,7 @@ if __name__ == '__main__':
         # load , please tune
         load_ft_epoch       = 50,
         model_ft_prefix     = '/data1/deepinsight/CAIScene/ft224nude0003_97'
-        
-        
-        
+            
     )
     args = parser.parse_args()
 

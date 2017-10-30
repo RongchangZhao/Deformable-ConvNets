@@ -29,10 +29,10 @@ parser.add_argument('--num-classes', type=int, default=80,help='')
 parser.add_argument('--batch-size', type=int, default=32,help='')
 parser.add_argument('--mode', type=int, default=0, help='')
 parser.add_argument('--mean-max', action="store_true", help='')
-parser.add_argument('--expand', type=int, default=12, help='')
+parser.add_argument('--expand', type=int, default=8, help='')
 #parser.add_argument('--rgb-mean', type=str, default='123.68,116.779,103.939', help='set to empty if no mean used')
-parser.add_argument('--rgb-mean', type=str, default='123.68,116.779,103.939', help='set to empty if no mean used')
-parser.add_argument('--layer', type=str, default='fullyconnected0', help='') #flatten0
+parser.add_argument('--rgb-mean', type=str, default='', help='set to empty if no mean used')
+parser.add_argument('--layer', type=str, default='flatten0', help='') #flatten0
 #parser.add_argument('--model', type=str, default='./model/ft448deformsqex0.0001_9682,3|./model/sft320deformsqex_9692,1')
 #parser.add_argument('--model', type=str, default='./model/sft320deformsqex_9692,1')
 #parser.add_argument('--model', type=str, default='./model/ft224deformsqex0003_9587,20')
@@ -48,7 +48,7 @@ parser.add_argument('--layer', type=str, default='fullyconnected0', help='') #fl
 #parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224|./model/sft448from32097nude00003_9740,11,448')
 #parser.add_argument('--model', type=str, default='./model/sft448from32097nude00003_9740,11,448|./model/ft224nude0003_97,50,224')
 #parser.add_argument('--model', type=str, default='./model/ft224nude0003_97,50,224')
-parser.add_argument('--model', type=str, default='/data1/deepinsight/CAIScene/irv2models/irv2ft1,18,299')  
+parser.add_argument('--model', type=str, default='/data1/deepinsight/CAIScene/irv2models/coclgtv90002_975,15,224')  
 #/data1/deepinsight/CAIScene/dpn92_9613,3,320
 #parser.add_argument('--model', type=str, default='./model/irv2ft1,40,299')
 parser.add_argument('--output', type=str, default='./224e8', help='')
