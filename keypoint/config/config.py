@@ -14,7 +14,7 @@ config.TEST.imgIds_num = -1
 
 config.TEST.model_path = 'testConfigModel'
 
-#config.TEST.model_path = '../realtimePose'
+config.TEST.model_path = '../realtimePose'
 
 config.TEST.epoch = 0
 
@@ -25,7 +25,7 @@ config.TRAIN = edict()
 config.TRAIN.num_epoch = 1
 
 #config.TRAIN.initial_model = '/data/guest_users/liangdong/liangdong/practice_demo/realtimePose'
-#config.TRAIN.output_model = 'testConfigModel'
+config.TRAIN.output_model = 'testConfigModel'
 
 config.TRAIN.crop_size_x = 368
 

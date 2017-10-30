@@ -12,7 +12,7 @@ from symbols.inceptions import *
 numofparts = 15
 numoflinks = 13
 
-def CPMModel(use_pretrained = 'RES', num_layers=152, outfeature=2048, **kwargs):
+def CPMModel(use_pretrained = 'RES', num_layers=152, outfeature=2048, expansion=4.0, num_group=1, **kwargs):
     
     """
     use_pretrained options: 
@@ -37,6 +37,8 @@ def CPMModel(use_pretrained = 'RES', num_layers=152, outfeature=2048, **kwargs):
                            0,
                            num_layers,
                            outfeature,
+                           expansion=expansion,
+                           num_group=num_group,
                            taskmode='KEY'
                            )
     

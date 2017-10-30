@@ -128,7 +128,7 @@ class poseModule(mx.mod.Module):
                 i=i+1
                 sumloss=0
                 numpixel=0
-                print 'iteration: ', i
+                print 'iteration in epoch: ', i
                 
                 '''
                 print 'length of prediction:', len(prediction)
@@ -141,8 +141,6 @@ class poseModule(mx.mod.Module):
                     numpixel +=lossiter.shape[0]
                     
                 '''
-                
-         
                 
                 lossiter = prediction[1].asnumpy()              
                 cls_loss = np.sum(lossiter)/batch_size
@@ -168,8 +166,8 @@ class poseModule(mx.mod.Module):
                 cmodel.backward()   
                 self.update()           
                 
-                if i > 10:
-                    break
+                #if i > 10:
+                #    break
                     
                 try:
                     next_data_batch = next(data_iter)
@@ -286,6 +284,7 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
     print "Step"
     arg_shapes, _, _ = irnext_cls_symbol.infer_shape(**data_shape_dict) # data=data_shape
     print zip(arg_names,arg_shapes)
+    '''
     rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)
             if x[0] in ['score_weight', 'score_bias', 'score_pool4_weight', 'score_pool4_bias', \
                         'score_pool3_weight', 'score_pool3_bias', 'score_0_weight', 'score_0_bias', \
@@ -301,7 +300,7 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
         initw = np.zeros(v)
         initw[range(v[0]), range(v[1]), :, :] = filt  # becareful here is the slice assing
         deeplab_args[k] = mx.nd.array(initw, ctx)
-    
+    '''
     return deeplab_args, deeplab_auxs
         
         
@@ -346,12 +345,13 @@ parser.set_defaults(
         num_epochs       = 100,
         lr               = 0.003,
         lr_step_epochs   = '30,60',
+        gpus             = '0,1,2,3,4,5,6,7',
         #dtype            = 'float32',
         
         # load , please tune
     
         load_ft_epoch       = 0,
-        model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-50L64X1D4XP'
+        model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-152L64X1D4XP'
             
 )
 
@@ -362,6 +362,7 @@ sym = CPMModel(**vars(args))
 ## Load parameters from RESNET
 _ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
 
+
 ## Init
 ctx = mx.cpu()
 data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
@@ -369,8 +370,22 @@ data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
                    'partaffinityglabel': (args.batch_size, numoflinks*2, 46, 46),
                    'heatweight': (args.batch_size, numofparts, 46, 46),
                    'vecweight': (args.batch_size, numoflinks*2, 46, 46)}
-arg_params, aux_params = init_from_irnext_cls(ctx, \
-                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
+#arg_params, aux_params = init_from_irnext_cls(ctx, \
+#                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
+
+
+fixshape = {}
+for k,v in arg_params.iteritems():
+    fixshape[k] = v.shape
+
+arg_name = sym.list_arguments()
+arg_shape, _, aux_shape = sym.infer_shape(**data_shape_dict)
+arg_shape_dict = dict(zip(arg_name, arg_shape))
+
+for k,v in arg_shape_dict.items():
+  if k in fixshape and v!=fixshape[k]:
+    print('a',k,fixshape[k])
+    print('b',k,v)
 
 '''
 newargs = {}
@@ -389,26 +404,29 @@ aidata = AIChallengerIterweightBatch('pose_io/AI_data_train.json', # 'pose_io/CO
 
 # 
 print "Start Pose Module"
-cmodel = poseModule(symbol=sym, context=mx.cpu(),
+
+
+
+cmodel = poseModule(symbol=sym, context= [mx.gpu(int(i)) for i in args.gpus.split(',')],
                     label_names=['heatmaplabel',
                                  'partaffinityglabel',
                                  'heatweight',
                                  'vecweight'])
 starttime = time.time()
 
-print sym
+#print sym
 
 '''
 output_prefix = config.TRAIN.output_model
 testsym, newargs, aux_params = mx.model.load_checkpoint(output_prefix, start_prefix)
 '''
-iteration = 3
+
 
 print "Start Fit"
-cmodel.fit(aidata, num_epoch = iteration, batch_size = batch_size, carg_params = arg_params)
+cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = arg_params)
 print "End Fit "
 
-cmodel.save_checkpoint(config.TRAIN.output_model, start_prefix + iteration)
+cmodel.save_checkpoint(config.TRAIN.output_model, start_prefix + args.num_epochs)
 endtime = time.time()
 
 print 'cost time: ', (endtime-starttime)/60
