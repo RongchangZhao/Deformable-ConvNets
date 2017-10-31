@@ -426,7 +426,7 @@ print "Start Fit"
 cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = None, initlr = args.lr)
 print "End Fit "
 
-cmodel.save_checkpoint(config.TRAIN.output_model, 'hourglass_stem_4x4' + args.num_epochs)
+cmodel.save_checkpoint(config.TRAIN.output_model, 'hourglass_stem_4x3x176' + args.num_epochs)
 endtime = time.time()
 
 print 'cost time: ', (endtime-starttime)/60
