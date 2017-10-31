@@ -145,22 +145,26 @@ class poseModule(mx.mod.Module):
                     
                 '''
                 
-                lossiter = prediction[1].asnumpy()              
+                lossiter = prediction[1].asnumpy()
+                print 'lossiter shape, ',lossiter.shape,
                 cls_loss = np.sum(lossiter)/batch_size
                 sumerror = sumerror + cls_loss
                 print 'start heat: ', cls_loss
                     
                 lossiter = prediction[0].asnumpy()
+                print 'lossiter shape, ',lossiter.shape,
                 cls_loss = np.sum(lossiter)/batch_size
                 sumerror = sumerror + cls_loss
                 print 'start paf: ', cls_loss
                 
-                lossiter = prediction[-1].asnumpy()              
+                lossiter = prediction[-1].asnumpy()  
+                print 'lossiter shape, ',lossiter.shape,
                 cls_loss = np.sum(lossiter)/batch_size
                 sumerror = sumerror + cls_loss
                 print 'end heat: ', cls_loss
                 
                 lossiter = prediction[-2].asnumpy()
+                print 'lossiter shape, ',lossiter.shape,
                 cls_loss = np.sum(lossiter)/batch_size
                 sumerror = sumerror + cls_loss
                 print 'end paf: ', cls_loss   
@@ -315,12 +319,13 @@ parser = argparse.ArgumentParser(description="train imagenet1k",
 parser.set_defaults(
         # network
         repetition       = 4,
-        num_filter       = 256,
+        num_filter       = 176,
         name             = 'shg',
         numofparts       = 15,
         numoflinks       = 13,
-        codec_structure  = 4,
-        layout_layer     = 3,
+        codec_structure  = 3,
+        layout_layer     = 2,
+        expandmode       = 'lin',
     
         
         # data
@@ -335,11 +340,11 @@ parser.set_defaults(
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
-        batch_size       = 16,
+        batch_size       = 9,
         num_epochs       = 1,
         lr               = 0.003,
         lr_step_epochs   = '30,60',
-        gpus             = '4,5,6,7',
+        gpus             = '4,5,6',
         #dtype            = 'float32',
         
         # load , please tune
@@ -354,14 +359,9 @@ args = parser.parse_args()
 # sym = CPMModel(**vars(args)) 
 
 sym = stackedhourglass(
-    args.repetition,
-    args.num_filter,
-    args.name,
-    args.numofparts,
-    args.numoflinks,
-    codec_structure = args.codec_structure,
-    layout_layer = args.layout_layer,
     **vars(args))
+
+print sym
 
 ## Load parameters from RESNET
 #_ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
@@ -378,18 +378,13 @@ data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
 #                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
 
 
-fixshape = {}
-for k,v in arg_params.iteritems():
-    fixshape[k] = v.shape
-
-arg_name = sym.list_arguments()
+#arg_name = sym.list_arguments()   
 arg_shape, _, aux_shape = sym.infer_shape(**data_shape_dict)
-arg_shape_dict = dict(zip(arg_name, arg_shape))
+#arg_shape_dict = dict(zip(arg_name, arg_shape))
+#for k,v in arg_shape_dict.items():
+#    print('b',k,v)
 
-for k,v in arg_shape_dict.items():
-  if k in fixshape and v!=fixshape[k]:
-    print('a',k,fixshape[k])
-    print('b',k,v)
+
 
 '''
 newargs = {}

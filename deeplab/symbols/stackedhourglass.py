@@ -247,7 +247,7 @@ def decoder_unit(data, num_filter, stride, dim_match, name, bottle_neck=0, kerne
 
 
 def hourglass(data, num_filter, name, codec_structure=4, \
-              bn_mom = 0.9, unitbatchnorm=False, expandmode='exp', workspace=256, memonger=False):
+              bn_mom = 0.9, unitbatchnorm=False, expandmode='lin', workspace=256, memonger=False):
     
     out = None
     if expandmode=='exp':
@@ -260,24 +260,39 @@ def hourglass(data, num_filter, name, codec_structure=4, \
     encodedown_0 = data
     
     for idx in range(codec_structure):
-        exec(\
-             'encodeup_{i} = encoder_unit(pool_{idx}, {num_filter},1, True, {name}+"_encodeup_"+{i},bottleneck=0)'.format(idx = idx, i = idx+1, num_filter = expander(idx)*num_filter, name=name)\
-            )
-        exec(\
-             'pool_{i} = mx.sym.Pooling(data=encodeup_{i}, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type="max")'.format(i = idx+1)\
-            )
-        exec(\
-             'encodedown_{i} = encoder_unit(pool_{idx}, {num_filter},1, True, {name}+"_encodedown_"+{i},bottleneck=0)'.format(idx = idx, i = idx+1, num_filter = expander(idx+1)*num_filter, name=name)\
-            )
+        s = 'encodeup_{i} = encoder_unit(encodedown_{idx}, {num_filter},1, True, "{name}"+"_encodeup_"+"{i}",bottle_neck=0)'.format(idx = idx, i = idx+1, num_filter = expander(idx)*num_filter, name=name)
+        print s
+        exec(s)
         
+        s = 'pool_{i} = mx.sym.Pooling(data=encodeup_{i}, kernel=(3, 3), stride=(2,2), pad=(1,1), pool_type="max")'.format(i = idx+1)
+        print s
+        exec(s)
         
-    exec('decodedown_{cst} = encodedown_{cst}'.format(cst = codec_structure))
+        s = 'encodedown_{i} = encoder_unit(pool_{i}, {num_filter},1, True, "{name}"+"_encodedown_"+"{i}",bottle_neck=0)'.format(idx = idx, i = idx+1, num_filter = expander(idx+1)*num_filter, name=name)
+        print s
+        exec(s)
+        
+    s = 'decodeup_{cst} = encodedown_{cst}'.format(cst = codec_structure)
+    print s
+    exec(s)
     
     
     for idx in range(codec_structure)[::-1] :
-        exec('decodedown_{idx} = decoder_unit(decodedown_{i}, {num_filter}, 1, True, {name}+"_decodedown_"+{idx}, bottleneck=0)+ pool_{i}'.format(idx = idx, i = idx+1, num_filter = num_filter*expander(idx), name = name) )
-        exec('unpool_{idx} = decoder_unit(decodedown_{idx}, {num_filter}, 2, True, {name}+"_deconvcode_"+{idx}, bottleneck=0, kernel=2, pad=0)+encodeup_{i}'.format(idx=idx, numfilter=num_filter*expander(idx), name = name))
-        exec('decodeup_{idx} = decoder_unit(unpool_{idx}, {num_filter}, 1, True, {name}+"_decodeup_"+{idx}, bottleneck=0)+ encodedown_{idx}'.format(idx = idx, i = idx+1, num_filter = num_filter*expander(idx), name = name) )
+        
+        s = 'decodedown_{ix} = decoder_unit(decodeup_{i}, {nf}, 1, True, "{nm}"+"_decodedown_"+"{ix}", bottle_neck=0, kernel=3, pad=1) + pool_{i} '.format(ix = idx, i = idx+1, nf = num_filter*expander(idx), nm = name) # 
+        print s
+        exec(s)
+        s = 'unpool_{ix} = decoder_unit(decodedown_{ix}, {nf}, 2, True, "{nm}"+"_deconvcode_"+"{ix}", bottle_neck=0, kernel=2, pad=0) + encodeup_{i}  '.format(ix=idx, i = idx+1, nf=num_filter*expander(idx), nm = name) # 
+        print s
+        exec(s) 
+        
+        
+        if idx == 0:
+            s = 'decodeup_{ix} = decoder_unit(unpool_{ix}, {nf}, 1, True, "{nm}"+"_decodeup_"+"{ix}", bottle_neck=0, kernel=3, pad = 1) + encodedown_{ix}'.format(ix = idx, i = idx+1, nf = num_filter*expander(idx), nm = name)
+        else:
+            s = 'decodeup_{ix} = decoder_unit(unpool_{ix}, {nf}, 1, True, "{nm}"+"_decodeup_"+"{ix}", bottle_neck=0, kernel=3, pad = 1) + encodedown_{ix}'.format(ix = idx, i = idx+1, nf = num_filter*expander(idx), nm = name)
+        print s
+        exec(s) # 
     
     
     exec('out = decodeup_0')
@@ -285,8 +300,8 @@ def hourglass(data, num_filter, name, codec_structure=4, \
 
 
 
-def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, codec_structure=4, layout_layer=3,\
-              bn_mom = 0.9, unitbatchnorm=False, expandmode='lin', workspace=256, memonger=False):
+def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, codec_structure=3, layout_layer=2,\
+              bn_mom = 0.9, unitbatchnorm=False, expandmode='lin', workspace=256, memonger=False, **kwargs):
     
     
     data = mx.symbol.Variable(name='data')
@@ -302,27 +317,29 @@ def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, code
     if repetition<=0:
         return data
     
-    body = mx.sym.Convolution(data=data, num_filter=64, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+    body = mx.sym.Convolution(data=data, num_filter=64, kernel=(7, 7), stride=(2,2), pad=(3, 3),
                                   no_bias=True, name="conv0", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
     
-    body = mx.sym.Convolution(data=data, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+    
+    body = mx.sym.Convolution(data=body, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv1", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn1')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu1')
-    
-    body = mx.sym.Convolution(data=data, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+    '''
+    body = mx.sym.Convolution(data=body, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv2", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn2')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu2')
     
-    body = mx.sym.Convolution(data=data, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+    body = mx.sym.Convolution(data=body, num_filter=128, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv3", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn3')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu3')
+    '''
     
-    body = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=(3, 3), stride=(1,1), pad=(1, 1),
+    body = mx.sym.Convolution(data=body, num_filter=num_filter, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv4", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn4')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu4')
@@ -345,20 +362,22 @@ def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, code
                                bn_mom = bn_mom, unitbatchnorm=unitbatchnorm, expandmode=expandmode,\
                                workspace=workspace, memonger=memonger)
         
-        out1 = mx.symbol.Convolution(out, kernel=(1,1), stride=(1,1), pad=(0,0), 
-                                    no_bias=True, name="outputconv11_{0}".format(i), workspace=workspace)
+        prepare1 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                              no_bias=True, workspace=workspace, name=name + 'hgprepare1_'+str(i))
+        prepare2 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                              no_bias=True, workspace=workspace, name=name + 'hgprepare2_'+str(i))
         
-        out1 = mx.symbol.Pooling(out1, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+        out1 = mx.symbol.Pooling(prepare1, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+        out2 = mx.symbol.Pooling(prepare2, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
             
-        shortcut1 = mx.symbol.Convolution(out1, num_filter=numofparts, kernel=(1,1), 
+        shortcut1 = mx.symbol.Convolution(out1, num_filter=numoflinks*2, kernel=(1,1), 
                                               no_bias=True, workspace=workspace, name=name + 'shortcut1_'+str(i))
-        shortcut2 = mx.symbol.Convolution(out1, num_filter=numoflinks*2, kernel=(1,1),
+        shortcut2 = mx.symbol.Convolution(out2, num_filter=numofparts, kernel=(1,1),
                                               no_bias=True, workspace=workspace, name=name + 'shortcut2_'+str(i))
         
     
     
         shortcut1r = mx.symbol.Reshape(data=shortcut1, shape=(-1,), name='shortcut1r')
-    
         shortcut1_loss = mx.symbol.square(shortcut1r-partaffinityglabelr)
     
         attention1= shortcut1_loss*vecweightw
