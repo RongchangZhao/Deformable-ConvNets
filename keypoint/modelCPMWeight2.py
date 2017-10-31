@@ -205,6 +205,7 @@ def CPMModel(use_pretrained = 'RES', num_layers=152, outfeature=2048, expansion=
     Mconv7_stage6_L1 = mx.symbol.Convolution(name='Mconv7_stage6_L1', data=Mrelu6_stage6_L1 , num_filter=numoflinks*2, pad=(0,0), kernel=(1,1), stride=(1,1), no_bias=False)
     Mconv7_stage6_L2 = mx.symbol.Convolution(name='Mconv7_stage6_L2', data=Mrelu6_stage6_L2 , num_filter=numofparts, pad=(0,0), kernel=(1,1), stride=(1,1), no_bias=False)
 
+    
     conv5_5_CPM_L1r = mx.symbol.Reshape(data=conv5_5_CPM_L1, shape=(-1,), name='conv5_5_CPM_L1r')
     partaffinityglabelr = mx.symbol.Reshape(data=partaffinityglabel, shape=(-1, ), name='partaffinityglabelr')
     stage1_loss_L1s = mx.symbol.square(conv5_5_CPM_L1r-partaffinityglabelr)

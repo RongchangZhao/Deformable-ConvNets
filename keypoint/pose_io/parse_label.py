@@ -14,13 +14,14 @@ import time
 import mxnet as mx
 from numpy import linalg as LA
 import cv2
+
 pylab.rcParams['figure.figsize'] = (10.0, 8.0)
 
-#path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_annotations_20170909.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
-#trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_images_20170902/'
+path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_annotations_20170909.jsontiny' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
+trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_train_20170909/keypoint_train_images_20170902/'
 
-path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_annotations_20170911.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
-trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_images_20170911/'
+#path1 = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_annotations_20170911.json' #'/home/zhangchenghao/mxnet_cpm/pose_io/AI_label.json'
+#trainimagepath = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_validation_20170911/keypoint_validation_images_20170911/'
 
 
 jointall = []
@@ -157,7 +158,7 @@ for img in label:
 print len(joint_all)
 
 
-with open('AI_data_val.json', 'w') as f1:
+with open('AI_data_traintiny.json', 'w') as f1:
      json.dump(joint_all, f1)
 
 

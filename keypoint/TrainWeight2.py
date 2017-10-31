@@ -6,7 +6,7 @@ from symbols.irnext_v2_deeplab_v3_dcn_w_hypers import *
 from symbols.dpns import *
 from symbols.inceptions import *
 import argparse
-
+from symbols.stackedhourglass import *
 
 class AIChallengerIterweightBatch:
     def __init__(self, datajson,
@@ -92,9 +92,10 @@ class AIChallengerIterweightBatch:
 
 start_prefix = 0
 
+
 class poseModule(mx.mod.Module):
 
-    def fit(self, train_data, num_epoch, batch_size, carg_params=None, begin_epoch=0):
+    def fit(self, train_data, num_epoch, batch_size, carg_params=None, begin_epoch=0, initlr=0.00004):
         
         assert num_epoch is not None, 'please specify number of epochs'
 
@@ -313,24 +314,15 @@ parser = argparse.ArgumentParser(description="train imagenet1k",
 
 parser.set_defaults(
         # network
-        network          = 'irnext',
-        num_layers       = 152,
-        outfeature       = 2048,
-        bottle_neck      = 1,
-        expansion        = 4, 
-        num_group        = 1,
-        dilpat           = '',#'DEEPLAB.HEAD', 
-        irv2             = False, 
-        deform           = 0,
-        sqex             = 0,
-        ratt             = 0,
-        usemaxavg        = 0,
-        scale            = 1, # 0.25, 
-        block567         = 0,
-        lmar             = 0,
-        lmarbeta         = 1000,
-        lmarbetamin      = 0,
-        lmarscale        = 0.9997,
+        repetition       = 4,
+        num_filter       = 256,
+        name             = 'shg',
+        numofparts       = 15,
+        numoflinks       = 13,
+        codec_structure  = 4,
+        layout_layer     = 3,
+    
+        
         # data
         
         train_image_root = '/data1/deepinsight/aichallenger/scene',
@@ -347,22 +339,32 @@ parser.set_defaults(
         num_epochs       = 1,
         lr               = 0.003,
         lr_step_epochs   = '30,60',
-        gpus             = '0,1,2,3',
+        gpus             = '4,5,6,7',
         #dtype            = 'float32',
         
         # load , please tune
     
-        load_ft_epoch       = 0,
-        model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-152L64X1D4XP'
+        #load_ft_epoch       = 0,
+        #model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-152L64X1D4XP'
             
 )
 
 args = parser.parse_args()
 
-sym = CPMModel(**vars(args)) 
+# sym = CPMModel(**vars(args)) 
+
+sym = stackedhourglass(
+    args.repetition,
+    args.num_filter,
+    args.name,
+    args.numofparts,
+    args.numoflinks,
+    codec_structure = args.codec_structure,
+    layout_layer = args.layout_layer,
+    **vars(args))
 
 ## Load parameters from RESNET
-_ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
+#_ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args.load_ft_epoch)
 
 
 ## Init
@@ -426,10 +428,10 @@ testsym, newargs, aux_params = mx.model.load_checkpoint(output_prefix, start_pre
 
 
 print "Start Fit"
-cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = arg_params)
+cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = None, initlr = args.lr)
 print "End Fit "
 
-cmodel.save_checkpoint(config.TRAIN.output_model, start_prefix + args.num_epochs)
+cmodel.save_checkpoint(config.TRAIN.output_model, 'hourglass_stem_4x4' + args.num_epochs)
 endtime = time.time()
 
 print 'cost time: ', (endtime-starttime)/60
