@@ -4,7 +4,7 @@ from easydict import EasyDict as edict
 
 config = edict()
 
-config.boxsize = 368
+config.boxsize = 256
 
 config.TEST = edict()
 
@@ -27,7 +27,7 @@ config.TRAIN.num_epoch = 1
 #config.TRAIN.initial_model = '/data/guest_users/liangdong/liangdong/practice_demo/realtimePose'
 config.TRAIN.output_model = 'testConfigModel'
 
-config.TRAIN.crop_size = 368 # 368
+config.TRAIN.crop_size = 256 # 368
 
 config.TRAIN.crop_size_x = config.TRAIN.crop_size
 
@@ -37,9 +37,9 @@ config.TRAIN.center_perterb_max = 0
 
 config.TRAIN.scale_prob = 1
 
-config.TRAIN.scale_min = 0.9
+config.TRAIN.scale_min = 0.75
 
-config.TRAIN.scale_max = 1.1
+config.TRAIN.scale_max = 1.25
 
 config.TRAIN.flip = True
 

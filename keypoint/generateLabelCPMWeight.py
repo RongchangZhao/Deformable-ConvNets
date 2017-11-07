@@ -26,12 +26,12 @@ from cython.pafmap import putVecMaps
 
 Point = namedtuple('Point', 'x y')
 
-crop_size_x = 368
-crop_size_y = 368
+crop_size_x = 256
+crop_size_y = 256
 center_perterb_max = 40
 scale_prob = 1
-scale_min = 0.5
-scale_max = 1.1
+scale_min = 0.7
+scale_max = 1.3
 target_dist = 0.6
 
 numofparts = 14
@@ -166,7 +166,7 @@ def augmentation_scale(meta, oriImg, maskmiss):
     else:
         dice2 = np.random.uniform()
         scale_multiplier = (config.TRAIN.scale_max - config.TRAIN.scale_min) * dice2 + config.TRAIN.scale_min
-        scale = 368.0/oriImg.shape[0]*scale_multiplier
+        scale = float(config.TRAIN.crop_size)/oriImg.shape[0]*scale_multiplier
         
     resizeImage = cv.resize(oriImg, (0, 0), fx=scale, fy=scale)
     maskmiss_scale = cv.resize(maskmiss, (0,0), fx=scale, fy=scale)
@@ -222,14 +222,16 @@ def augmentation_rotate(meta, flipimage, maskmiss):
     newmeta = copy.deepcopy(meta)
     dice2 = np.random.uniform()
     degree = (dice2 - 0.5)*2*config.TRAIN.max_rotate_degree 
+    crop_x = config.TRAIN.crop_size_x
+    crop_y = config.TRAIN.crop_size_y
     
     #print degree
-    center = (368/2, 368/2)
+    center = (crop_y/2, crop_x/2)
     
     R = cv.getRotationMatrix2D(center, degree, 1.0)
     
-    rotatedImage = cv.warpAffine(flipimage, R, (368,368))
-    maskmiss_rotated = cv.warpAffine(maskmiss, R, (368,368))
+    rotatedImage = cv.warpAffine(flipimage, R, (crop_y,crop_x))
+    maskmiss_rotated = cv.warpAffine(maskmiss, R, (crop_y,crop_x))
     
     for i in range(len(meta['joint_self']['joints'])):
         newmeta['joint_self']['joints'][i] = rotatePoint(R, newmeta['joint_self']['joints'][i])
@@ -282,17 +284,19 @@ def augmentation_croppad(meta, oriImg, maskmiss):
             newmeta2['joint_others'][i]['joints'][j]['x'] += offset_left
             newmeta2['joint_others'][i]['joints'][j]['y'] += offset_up
 
-    newmeta2['img_height'] = 368
-    newmeta2['img_width'] = 368
+    newmeta2['img_height'] = crop_y
+    newmeta2['img_width'] = crop_x
     return (newmeta2, img_dst, maskmiss_cropped)
 
 def generateLabelMap(img_aug, meta):
+    crop_x = config.TRAIN.crop_size_x
+    crop_y = config.TRAIN.crop_size_y
     thre = 0.5
-    crop_size_width = 368
-    crop_size_height = 368
+    crop_size_width = crop_x
+    crop_size_height = crop_y
 
-    augmentcols = 368
-    augmentrows = 368
+    augmentcols = crop_x
+    augmentrows = crop_y
     stride = 8
     grid_x = augmentcols / stride
     grid_y = augmentrows / stride
@@ -306,13 +310,13 @@ def generateLabelMap(img_aug, meta):
 
     for i in range(numofparts):
         if (meta['joint_self']['isVisible'][i] <= 1):
-            putGaussianMaps(heat_map[i], 368, 368, 
+            putGaussianMaps(heat_map[i], crop_y, crop_x, 
                             meta['joint_self']['joints'][i]['x'], meta['joint_self']['joints'][i]['y'],
                             stride, grid_x, grid_y, sigma)
 
         for j in meta['joint_others']:
             if (meta['joint_others'][j]['isVisible'][i] <= 1):
-                putGaussianMaps(heat_map[i], 368, 368, 
+                putGaussianMaps(heat_map[i], crop_y, crop_x, 
                                 meta['joint_others'][j]['joints'][i]['x'], 
                                 meta['joint_others'][j]['joints'][i]['y'],
                                 stride, grid_x, grid_y, sigma)
@@ -392,10 +396,13 @@ def getImageandLabel(iterjson):
     maskmiss = getMask(meta)
     maskmiss = maskmiss.astype(np.uint8)
     
+    #print(oriImg.shape)
     newmeta, resizeImage, maskmiss_scale = augmentation_scale(meta, oriImg, maskmiss)
+    #print(resizeImage.shape)
 
     newmeta2, croppedImage, maskmiss_cropped = augmentation_croppad(newmeta, resizeImage,
                                                                    maskmiss_scale)
+    #print(croppedImage.shape)
     
     newmeta3, rotatedImage, maskmiss_rotate= augmentation_rotate(newmeta2, croppedImage, 
                                                                 maskmiss_cropped)
