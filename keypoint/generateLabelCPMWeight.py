@@ -342,17 +342,17 @@ def generateLabelMap(img_aug, meta):
 
     pag_map = list()
     for i in range(numoflinks*2):
-        pag_map.append(np.zeros((46, 46)))
+        pag_map.append(np.zeros((config.TRAIN.label_size, config.TRAIN.label_size)))
 
     for i in range(numoflinks):
-        count = np.zeros((46, 46))
+        count = np.zeros((config.TRAIN.label_size, config.TRAIN.label_size))
         jo = meta['joint_self']
 
         if (jo['isVisible'][mid_1[i] - 1] <= 1 and jo['isVisible'][mid_2[i] - 1] <= 1):
             putVecMaps(pag_map[2 * i], pag_map[2 * i + 1], count,
                        jo['joints'][mid_1[i] - 1]['x'], jo['joints'][mid_1[i] - 1]['y'], 
                        jo['joints'][mid_2[i] - 1]['x'], jo['joints'][mid_2[i] - 1]['y'],
-                       stride, 46, 46, sigma, thre)
+                       stride, config.TRAIN.label_size, config.TRAIN.label_size, sigma, thre)
 
 
         for j in meta['joint_others']:
@@ -361,7 +361,7 @@ def generateLabelMap(img_aug, meta):
                 putVecMaps(pag_map[2 * i], pag_map[2 * i + 1], count,
                            jo['joints'][mid_1[i] - 1]['x'], jo['joints'][mid_1[i] - 1]['y'],
                            jo['joints'][mid_2[i] - 1]['x'], jo['joints'][mid_2[i] - 1]['y'],
-                           stride, 46, 46, sigma, thre)
+                           stride, config.TRAIN.label_size, config.TRAIN.label_size, sigma, thre)
                 
     return (heat_map, pag_map)
 

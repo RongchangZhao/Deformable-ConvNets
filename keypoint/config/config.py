@@ -27,11 +27,14 @@ config.TRAIN.num_epoch = 1
 #config.TRAIN.initial_model = '/data/guest_users/liangdong/liangdong/practice_demo/realtimePose'
 config.TRAIN.output_model = 'testConfigModel'
 
-config.TRAIN.crop_size = 256 # 368
+#config.TRAIN.crop_size = 368
+config.TRAIN.crop_size = 256
+config.TRAIN.label_size = 32
 
 config.TRAIN.crop_size_x = config.TRAIN.crop_size
 
 config.TRAIN.crop_size_y = config.TRAIN.crop_size
+
 
 config.TRAIN.center_perterb_max = 0
 

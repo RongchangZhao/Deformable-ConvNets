@@ -61,9 +61,14 @@ class AIChallengerIterweightBatch:
                     image, mask, heatmap, pagmap = getImageandLabel(self.data[self.keys[self.cur_batch]])
                 except:
                     pass
-                maskscale = mask[0:368:8, 0:368:8, 0]
-                heatweight = np.ones((numofparts, 46, 46))
-                vecweight = np.ones((numoflinks*2, 46, 46))
+                #print(image.shape, mask.shape)
+                #for h in heatmap:
+                #  print('heatmap', h.shape)
+                #for p in pagmap:
+                #  print('pagmap', p.shape)
+                maskscale = mask[0:config.TRAIN.crop_size:8, 0:config.TRAIN.crop_size:8, 0]
+                heatweight = np.ones((numofparts, config.TRAIN.label_size, config.TRAIN.label_size))
+                vecweight = np.ones((numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size))
 
                 for i in range(numofparts):
                     heatweight[i,:,:] = maskscale
@@ -98,11 +103,11 @@ class poseModule(mx.mod.Module):
         
         assert num_epoch is not None, 'please specify number of epochs'
 
-        self.bind(data_shapes=[('data', (batch_size, 3, 368, 368))], label_shapes=[
-        ('heatmaplabel', (batch_size, numofparts, 46, 46)),
-        ('partaffinityglabel', (batch_size, numoflinks*2, 46, 46)),
-        ('heatweight', (batch_size, numofparts, 46, 46)),
-        ('vecweight', (batch_size, numoflinks*2, 46, 46))])
+        self.bind(data_shapes=[('data', (batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size))], label_shapes=[
+        ('heatmaplabel', (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('partaffinityglabel', (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('heatweight', (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('vecweight', (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size))])
    
         
         # self.init_params(mx.initializer.Xavier(rnd_type='uniform', factor_type='avg', magnitude=1))
@@ -280,7 +285,7 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                 deeplab_args[k] = mx.nd.zeros(shape=v)
 
     
-    data_shape=(32,3,368,368)
+    data_shape=(32,3,config.TRAIN.crop_size,config.TRAIN.crop_size)
     arg_names = irnext_cls_symbol.list_arguments()
     print arg_names
     print "Step"
@@ -367,11 +372,11 @@ _ , arg_params, aux_params = mx.model.load_checkpoint(args.model_ft_prefix, args
 
 ## Init
 ctx = mx.cpu()
-data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
-                   'heatmaplabel': (args.batch_size, numofparts, 46, 46), \
-                   'partaffinityglabel': (args.batch_size, numoflinks*2, 46, 46),
-                   'heatweight': (args.batch_size, numofparts, 46, 46),
-                   'vecweight': (args.batch_size, numoflinks*2, 46, 46)}
+data_shape_dict = {'data': (args.batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size), \
+                   'heatmaplabel': (args.batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size), \
+                   'partaffinityglabel': (args.batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size),
+                   'heatweight': (args.batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                   'vecweight': (args.batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)}
 #arg_params, aux_params = init_from_irnext_cls(ctx, \
 #                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
 
@@ -398,12 +403,12 @@ for ikey in config.TRAIN.vggparams:
 batch_size = args.batch_size
 
 aidata = AIChallengerIterweightBatch('pose_io/AI_data_train.json', # 'pose_io/COCO_data.json',
-                          'data', (batch_size, 3, 368, 368),
+                          'data', (batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size),
                           ['heatmaplabel','partaffinityglabel','heatweight','vecweight'],
-                          [(batch_size, numofparts, 46, 46),
-                           (batch_size, numoflinks*2, 46, 46),
-                           (batch_size, numofparts, 46, 46),
-                           (batch_size, numoflinks*2, 46, 46)], batch_size=args.batch_size)
+                          [(batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)], batch_size=args.batch_size)
 
 # 
 print "Start Pose Module"
