@@ -301,7 +301,7 @@ def hourglass(data, num_filter, name, codec_structure=4, \
 
 
 def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, codec_structure=3, layout_layer=2,\
-              bn_mom = 0.9, unitbatchnorm=False, expandmode='lin', workspace=256, memonger=False, **kwargs):
+              bn_mom = 0.9, unitbatchnorm=False, expandmode='lin', workspace=256, memonger=False, test=False, **kwargs):
     
     
     data = mx.symbol.Variable(name='data')
@@ -317,7 +317,7 @@ def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, code
     if repetition<=0:
         return data
     
-    body = mx.sym.Convolution(data=data, num_filter=64, kernel=(7, 7), stride=(2,2), pad=(3, 3),
+    body = mx.sym.Convolution(data=data, num_filter=64, kernel=(3, 3), stride=(1,1), pad=(1, 1),
                                   no_bias=True, name="conv0", workspace=workspace)
     body = mx.sym.BatchNorm(data=body, fix_gamma=False, eps=2e-5, momentum=bn_mom, name='bn0')
     body = mx.sym.Activation(data=body, act_type='relu', name='relu0')
@@ -354,43 +354,87 @@ def stackedhourglass(repetition, num_filter, name,  numofparts, numoflinks, code
     heatmaplabelr = mx.symbol.Reshape(data=heatmaplabel, shape=(-1, ), name='heatmaplabelr')
     heatweightw = mx.symbol.Reshape(data=heatweight, shape=(-1,), name='heatweightw')
     
-    grouped = []
-    for i in range(repetition):
-        
-        out  = hourglass(out, num_filter, 'hourglass_{0}_'.format(i), \
-                               codec_structure=codec_structure, \
-                               bn_mom = bn_mom, unitbatchnorm=unitbatchnorm, expandmode=expandmode,\
-                               workspace=workspace, memonger=memonger)
-        
-        prepare1 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
-                                              no_bias=True, workspace=workspace, name=name + 'hgprepare1_'+str(i))
-        prepare2 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
-                                              no_bias=True, workspace=workspace, name=name + 'hgprepare2_'+str(i))
-        
-        out1 = mx.symbol.Pooling(prepare1, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
-        out2 = mx.symbol.Pooling(prepare2, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+    
+    if test == False:
+        grouped = []
+        for i in range(repetition):
             
-        shortcut1 = mx.symbol.Convolution(out1, num_filter=numoflinks*2, kernel=(1,1), 
-                                              no_bias=True, workspace=workspace, name=name + 'shortcut1_'+str(i))
-        shortcut2 = mx.symbol.Convolution(out2, num_filter=numofparts, kernel=(1,1),
-                                              no_bias=True, workspace=workspace, name=name + 'shortcut2_'+str(i))
+            out  = hourglass(out, num_filter, 'hourglass_{0}_'.format(i), \
+                                   codec_structure=codec_structure, \
+                                   bn_mom = bn_mom, unitbatchnorm=unitbatchnorm, expandmode=expandmode,\
+                                   workspace=workspace, memonger=memonger)
+            
+            prepare1 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'hgprepare1_'+str(i))
+            prepare2 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'hgprepare2_'+str(i))
+            
+            out1 = mx.symbol.Pooling(prepare1, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+            out2 = mx.symbol.Pooling(prepare2, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+                
+            shortcut1 = mx.symbol.Convolution(out1, num_filter=numoflinks*2, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'shortcut1_'+str(i))
+            shortcut2 = mx.symbol.Convolution(out2, num_filter=numofparts, kernel=(1,1),
+                                                  no_bias=True, workspace=workspace, name=name + 'shortcut2_'+str(i))
+            
         
-    
-    
-        shortcut1r = mx.symbol.Reshape(data=shortcut1, shape=(-1,), name='shortcut1r')
-        shortcut1_loss = mx.symbol.square(shortcut1r-partaffinityglabelr)
-    
-        attention1= shortcut1_loss*vecweightw
-        Loss1  = mx.symbol.MakeLoss(attention1)
-        shortcut2r = mx.symbol.Reshape(data=shortcut2, shape=(-1,), name='shortcut2r')
-        shortcut2_loss = mx.symbol.square(shortcut2r-heatmaplabelr)
-        attention2 = shortcut2_loss*heatweightw
-        Loss2  = mx.symbol.MakeLoss(attention2)
-    
-        grouped.extend([Loss1,Loss2])
         
-    return mx.symbol.Group(grouped)
+            shortcut1r = mx.symbol.Reshape(data=shortcut1, shape=(-1,), name='shortcut1r')
+            shortcut1_loss = mx.symbol.square(shortcut1r-partaffinityglabelr)
         
+            attention1= shortcut1_loss*vecweightw
+            Loss1  = mx.symbol.MakeLoss(attention1)
+            shortcut2r = mx.symbol.Reshape(data=shortcut2, shape=(-1,), name='shortcut2r')
+            shortcut2_loss = mx.symbol.square(shortcut2r-heatmaplabelr)
+            attention2 = shortcut2_loss*heatweightw
+            Loss2  = mx.symbol.MakeLoss(attention2)
+        
+            grouped.extend([Loss1,Loss2])
+            
+        return mx.symbol.Group(grouped)
+        
+    else:
+        grouped = []
+        
+        for i in range(repetition):
+            
+            out  = hourglass(out, num_filter, 'hourglass_{0}_'.format(i), \
+                                   codec_structure=codec_structure, \
+                                   bn_mom = bn_mom, unitbatchnorm=unitbatchnorm, expandmode=expandmode,\
+                                   workspace=workspace, memonger=memonger)
+            
+            prepare1 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'hgprepare1_'+str(i))
+            prepare2 = mx.symbol.Convolution(out, num_filter=num_filter, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'hgprepare2_'+str(i))
+            
+            out1 = mx.symbol.Pooling(prepare1, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+            out2 = mx.symbol.Pooling(prepare2, kernel=(k,k), stride=(k,k), pad=(0,0), pool_type="max")
+                
+            shortcut1 = mx.symbol.Convolution(out1, num_filter=numoflinks*2, kernel=(1,1), 
+                                                  no_bias=True, workspace=workspace, name=name + 'shortcut1_'+str(i))
+            shortcut2 = mx.symbol.Convolution(out2, num_filter=numofparts, kernel=(1,1),
+                                                  no_bias=True, workspace=workspace, name=name + 'shortcut2_'+str(i))
+            
+        
+        
+            #shortcut1r = mx.symbol.Reshape(data=shortcut1, shape=(-1,), name='shortcut1r')
+            #shortcut1_loss = mx.symbol.square(shortcut1r-partaffinityglabelr)
+        
+            
+            # Loss1  = mx.symbol.MakeLoss(attention1)
+            #shortcut2r = mx.symbol.Reshape(data=shortcut2, shape=(-1,), name='shortcut2r')
+            
+            grouped.extend([shortcut1, shortcut2])
+            
+            
+            #shortcut2_loss = mx.symbol.square(shortcut2r-heatmaplabelr)
+            #attention2 = shortcut2_loss*heatweightw
+            #Loss2  = mx.symbol.MakeLoss(attention2)
+        
+            #grouped.extend([Loss1,Loss2])
+        #print type(heatpred), ' of heatpred', type(vecpred), ' of vecpred',
+        return mx.symbol.Group(grouped[-2:])
     
     
     

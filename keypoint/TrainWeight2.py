@@ -61,9 +61,9 @@ class AIChallengerIterweightBatch:
                     image, mask, heatmap, pagmap = getImageandLabel(self.data[self.keys[self.cur_batch]])
                 except:
                     pass
-                maskscale = mask[0:368:8, 0:368:8, 0]
-                heatweight = np.ones((numofparts, 46, 46))
-                vecweight = np.ones((numoflinks*2, 46, 46))
+                maskscale = mask[0:config.TRAIN.crop_size:8, 0:config.TRAIN.crop_size:8, 0]
+                heatweight = np.ones((numofparts, config.TRAIN.label_size, config.TRAIN.label_size))
+                vecweight = np.ones((numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size))
 
                 for i in range(numofparts):
                     heatweight[i,:,:] = maskscale
@@ -99,11 +99,11 @@ class poseModule(mx.mod.Module):
         
         assert num_epoch is not None, 'please specify number of epochs'
 
-        self.bind(data_shapes=[('data', (batch_size, 3, 368, 368))], label_shapes=[
-        ('heatmaplabel', (batch_size, numofparts, 46, 46)),
-        ('partaffinityglabel', (batch_size, numoflinks*2, 46, 46)),
-        ('heatweight', (batch_size, numofparts, 46, 46)),
-        ('vecweight', (batch_size, numoflinks*2, 46, 46))])
+        self.bind(data_shapes=[('data', (batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size))], label_shapes=[
+        ('heatmaplabel', (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('partaffinityglabel', (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('heatweight', (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size)),
+        ('vecweight', (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size))])
    
         
         # self.init_params(mx.initializer.Xavier(rnd_type='uniform', factor_type='avg', magnitude=1))
@@ -113,7 +113,7 @@ class poseModule(mx.mod.Module):
         self.init_params(arg_params = carg_params, aux_params={}, allow_missing = True)
         #self.set_params(arg_params = carg_params, aux_params={},
         #                allow_missing = True)
-        self.init_optimizer(optimizer='sgd', optimizer_params=(('learning_rate', 0.00004), ))
+        self.init_optimizer(optimizer='sgd', optimizer_params=(('learning_rate', initlr), ))
         losserror_list = []
 
         for epoch in range(begin_epoch, num_epoch):
@@ -285,7 +285,7 @@ def init_from_irnext_cls(ctx, irnext_cls_symbol, irnext_cls_args, irnext_cls_aux
                 deeplab_args[k] = mx.nd.zeros(shape=v)
 
     
-    data_shape=(32,3,368,368)
+    data_shape=(32,3,config.TRAIN.crop_size,config.TRAIN.crop_size)
     arg_names = irnext_cls_symbol.list_arguments()
     print arg_names
     print "Step"
@@ -319,12 +319,12 @@ parser = argparse.ArgumentParser(description="train imagenet1k",
 parser.set_defaults(
         # network
         repetition       = 4,
-        num_filter       = 176,
+        num_filter       = 128,
         name             = 'shg',
         numofparts       = 15,
         numoflinks       = 13,
-        codec_structure  = 3,
-        layout_layer     = 2,
+        codec_structure  = 5,
+        layout_layer     = 3,
         expandmode       = 'lin',
     
         
@@ -340,11 +340,11 @@ parser.set_defaults(
         min_random_scale = 1.0 , # if input image has min size k, suggest to use
                               # 256.0/x, e.g. 0.533 for 480
         # train
-        batch_size       = 9,
+        batch_size       = 4,
         num_epochs       = 1,
-        lr               = 0.003,
+        lr               = 0.00003,
         lr_step_epochs   = '30,60',
-        gpus             = '4,5,6',
+        gpus             = '0,1,2,3',
         #dtype            = 'float32',
         
         # load , please tune
@@ -369,11 +369,11 @@ print sym
 
 ## Init
 ctx = mx.cpu()
-data_shape_dict = {'data': (args.batch_size, 3, 368, 368), \
-                   'heatmaplabel': (args.batch_size, numofparts, 46, 46), \
-                   'partaffinityglabel': (args.batch_size, numoflinks*2, 46, 46),
-                   'heatweight': (args.batch_size, numofparts, 46, 46),
-                   'vecweight': (args.batch_size, numoflinks*2, 46, 46)}
+data_shape_dict = {'data': (args.batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size), \
+                   'heatmaplabel': (args.batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size), \
+                   'partaffinityglabel': (args.batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size),
+                   'heatweight': (args.batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                   'vecweight': (args.batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)}
 #arg_params, aux_params = init_from_irnext_cls(ctx, \
 #                            sym, arg_params, aux_params, data_shape_dict, block567=args.block567)
 
@@ -395,12 +395,12 @@ for ikey in config.TRAIN.vggparams:
 batch_size = args.batch_size
 
 aidata = AIChallengerIterweightBatch('pose_io/AI_data_train.json', # 'pose_io/COCO_data.json',
-                          'data', (batch_size, 3, 368, 368),
+                          'data', (batch_size, 3, config.TRAIN.crop_size, config.TRAIN.crop_size),
                           ['heatmaplabel','partaffinityglabel','heatweight','vecweight'],
-                          [(batch_size, numofparts, 46, 46),
-                           (batch_size, numoflinks*2, 46, 46),
-                           (batch_size, numofparts, 46, 46),
-                           (batch_size, numoflinks*2, 46, 46)], batch_size=args.batch_size)
+                          [(batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numofparts, config.TRAIN.label_size, config.TRAIN.label_size),
+                           (batch_size, numoflinks*2, config.TRAIN.label_size, config.TRAIN.label_size)], batch_size=args.batch_size)
 
 # 
 print "Start Pose Module"
@@ -426,7 +426,7 @@ print "Start Fit"
 cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = None, initlr = args.lr)
 print "End Fit "
 
-cmodel.save_checkpoint(config.TRAIN.output_model, 'hourglass_stem_4x3x176' + args.num_epochs)
+cmodel.save_checkpoint('hourglass_stem_4x5x128_384_'+str(args.lr),  args.num_epochs)
 endtime = time.time()
 
 print 'cost time: ', (endtime-starttime)/60

@@ -349,7 +349,7 @@ parser.set_defaults(
                               # 256.0/x, e.g. 0.533 for 480
         # train
         batch_size       = 16,
-        num_epochs       = 1,
+        num_epochs       = 3,
         lr               = 0.003,
         lr_step_epochs   = '30,60',
         gpus             = '0,1,2,3',
@@ -434,7 +434,7 @@ print "Start Fit"
 cmodel.fit(aidata, num_epoch = args.num_epochs, batch_size = batch_size, carg_params = arg_params)
 print "End Fit "
 
-cmodel.save_checkpoint(config.TRAIN.output_model, start_prefix + args.num_epochs)
+cmodel.save_checkpoint('resnet152_256_', args.num_epochs)
 endtime = time.time()
 
 print 'cost time: ', (endtime-starttime)/60

@@ -28,8 +28,8 @@ config.TRAIN.num_epoch = 1
 config.TRAIN.output_model = 'testConfigModel'
 
 #config.TRAIN.crop_size = 368
-config.TRAIN.crop_size = 256
-config.TRAIN.label_size = 32
+config.TRAIN.crop_size = 384
+config.TRAIN.label_size = 48
 
 config.TRAIN.crop_size_x = config.TRAIN.crop_size
 

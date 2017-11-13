@@ -16,11 +16,18 @@ import scipy
 import matplotlib
 import pylab as plt
 from scipy.ndimage.filters import gaussian_filter
-from modelCPMWeight import *
+from modelCPMWeight2 import *
 from collections import namedtuple
+from symbols.stackedhourglass import *
+import argparse
+
+
+
+
+
 Point = namedtuple('Point', 'x y')
-crop_size_x = 368
-crop_size_y = 368
+crop_size_x = 384
+crop_size_y = 384
 center_perterb_max = 40
 
 scale_prob = 1
@@ -29,10 +36,58 @@ scale_max = 1.1
 target_dist = 0.6
 
 
-output_prefix='model/testConfigModel'
-sym, arg_params, aux_params = mx.model.load_checkpoint(output_prefix, 44)
+output_prefix='hourglass_stem_4x5x128_384_3e-05'
+sym, arg_params, aux_params = mx.model.load_checkpoint(output_prefix, 1)
 
-csym = CPMModel_test()
+parser = argparse.ArgumentParser(description="train imagenet1k",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.set_defaults(
+        # network
+        repetition       = 4,
+        num_filter       = 128,
+        name             = 'shg',
+        numofparts       = 15,
+        numoflinks       = 13,
+        codec_structure  = 5,
+        layout_layer     = 3,
+        expandmode       = 'lin',
+    
+        
+        # data
+        
+        train_image_root = '/data1/deepinsight/aichallenger/scene',
+        val_image_root = '/data1/deepinsight/aichallenger/scene',
+        
+        #num_classes      = 80,
+        #num_examples     = 53878,
+        #image_shape      = '3,224,224',
+        #lastout          = 7,
+        min_random_scale = 1.0 , # if input image has min size k, suggest to use
+                              # 256.0/x, e.g. 0.533 for 480
+        # train
+        batch_size       = 1,
+        num_epochs       = 1,
+        lr               = 0.00003,
+        lr_step_epochs   = '30,60',
+        gpus             = '0,1,2,3',
+        test             = True,
+        #dtype            = 'float32',
+        
+        # load , please tune
+    
+        #load_ft_epoch       = 0,
+        #model_ft_prefix     = '/home/deepinsight/frankwang/Deformable-ConvNets/deeplab/runs_CAIScene/CLS-ResNeXt-152L64X1D4XP'
+            
+)
+
+args = parser.parse_args()
+
+# sym = CPMModel(**vars(args)) 
+
+csym1 = stackedhourglass(**vars(args))
+
+
+#csym = CPMModel_test()
 
 def padRightDownCorner(img, stride, padValue):
     h = img.shape[0]
@@ -64,20 +119,42 @@ class DataBatch(object):
 
 def applyDNN(oriImg, images, sym1, arg_params1, aux_params1):
     
-    imageToTest_padded, pad = padRightDownCorner(images, 8, 128)
+    
+    imageToTest_padded, pad = padRightDownCorner(images, 32, 128)
     transposeImage = np.transpose(np.float32(imageToTest_padded[:,:,:]), (2,0,1))/256 - 0.5
     testimage = transposeImage
+    #orisize = testimage.shape
+    #print orisize
+    #tarsize = (3,orisize[1]/8,orisize[2]/8)
+    #print tarsize
+    #print testimage.shape
+    testimage = np.resize(testimage,(3,384,384))
+    #print testimage.shape
+    
+    cmodel1 = mx.mod.Module(symbol=sym1, label_names=[], context=mx.gpu(1))
+    #cmodel2 = mx.mod.Module(symbol=csym2, label_names=[], context=mx.gpu(0))
     # print testimage.shape
-    cmodel = mx.mod.Module(symbol=csym, label_names=[], context=mx.gpu(1))
-    # print testimage.shape
-    cmodel.bind(data_shapes=[('data', (1, 3, testimage.shape[1], testimage.shape[2]))])
-    cmodel.init_params(arg_params=arg_params1, aux_params=aux_params1)
+    cmodel1.bind(data_shapes=[('data', (1, 3, testimage.shape[1], testimage.shape[2]))])
+    #cmodel2.bind(data_shapes=[('data', (1, 3, testimage.shape[1], testimage.shape[2]))])
+    # 
+    #                         ('partaffinityglabel', (15, testimage.shape[1]/8, testimage.shape[2]/8)),\
+    #                         ('vecweight', (15, testimage.shape[1]/8, testimage.shape[2]/8)),\
+    #                         ('heatmaplabel',(26, testimage.shape[1]/8, testimage.shape[2]/8)),\
+    #                         ('heatweight', (26, testimage.shape[1]/8, testimage.shape[2]/8))
+    
+    cmodel1.init_params(arg_params=arg_params1, aux_params=aux_params1)
+    #cmodel2.init_params(arg_params=arg_params1, aux_params=aux_params1)
     # print 'init_params failed'
     onedata = DataBatch(mx.nd.array([testimage[:,:,:]]), 0)
+    #onedata = DataBatchweight(mx.nd.array([testimage[:,:,:]]), None, None, None, None, 0)
     #print 'batch'
-    cmodel.forward(onedata)
+    cmodel1.forward(onedata)
+    #cmodel2.forward(onedata)
     #print 'forward'
-    result = cmodel.get_outputs()
+    result = cmodel1.get_outputs()
+    
+    #result = [np.resize(item, tarsize) for item in result]
+    #print type(result[0]),type(result[1])
     
     heatmap = np.moveaxis(result[1].asnumpy()[0], 0, -1)
     heatmap = cv.resize(heatmap, (0,0), fx=8, fy=8, interpolation=cv.INTER_CUBIC)
@@ -88,6 +165,8 @@ def applyDNN(oriImg, images, sym1, arg_params1, aux_params1):
     pagmap = cv.resize(pagmap, (0,0), fx=8, fy=8, interpolation=cv.INTER_CUBIC)
     pagmap = pagmap[:imageToTest_padded.shape[0]-pad[2], :imageToTest_padded.shape[1]-pad[3], :]
     pagmap = cv.resize(pagmap, (oriImg.shape[1], oriImg.shape[0]), interpolation=cv.INTER_CUBIC)
+    
+    print heatmap.max(),heatmap.mean(), pagmap.max(),pagmap.mean()
     
     # print heatmap.shape
     # print pagmap.shape
@@ -102,9 +181,9 @@ def applyModel(oriImg, param, sym, arg_params, aux_params):
     octave = param['octave']
     starting_range = param['starting_range']
     ending_range = param['ending_range'] 
-    boxsize = 368
+    boxsize = 384
     scale_search = [0.5, 1, 1.5, 2]
-    multiplier = [x * boxsize*1.0/ oriImg.shape[0] for x in scale_search] 
+    multiplier = [x * boxsize*1.0 / oriImg.shape[0] for x in scale_search] 
   
     
     heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], numofparts))
@@ -136,7 +215,7 @@ param['modelID'] = modelId
 # Use click mode or not. If yes (1), you will be asked to click on the center
 # of person to be pose-estimated (for multiple people image). If not (0),
 # the model will simply be applies on the whole image.
-param['click'] = 1
+param['click'] = 0
 # Scaling paramter: starting and ending ratio of person height to image
 # height, and number of scales per octave
 # warning: setting too small starting value on non-click mode will take
@@ -157,6 +236,7 @@ param['bbox_ratio'] = 0.25 # 0.5
 param['max'] = 0
 # use average heatmap
 param['merge'] = 'avg'
+param['thre_shg384'] = 0.003
 
 # path of your caffe
 caffepath = '/home/zhecao/caffe/matlab';
@@ -172,7 +252,7 @@ if modelId == 1:
     param['model'][1]['caffemodel'] = '../model/_trained_COCO/pose_iter_440000.caffemodel'
     param['model'][1]['deployFile'] = '../model/_trained_COCO/pose_deploy.prototxt'
     param['model'][1]['description'] = 'COCO Pose56 Two-level Linevec'
-    param['model'][1]['boxsize'] = 368
+    param['model'][1]['boxsize'] = 384
     param['model'][1]['padValue'] = 128
     param['model'][1]['np'] = 18
     param['model'][1]['part_str'] = ['nose', 'neck', 'Rsho', 'Relb', 'Rwri', 
@@ -192,7 +272,7 @@ if modelId == 2:
     param['model'][2]['caffemodel'] = '../model/_trained_MPI/pose_iter_146000.caffemodel'
     param['model'][2]['deployFile'] = '../model/_trained_MPI/pose_deploy.prototxt'
     param['model'][2]['description'] = 'COCO Pose56 Two-level Linevec'
-    param['model'][2]['boxsize'] = 368
+    param['model'][2]['boxsize'] = 384
     param['model'][2]['padValue'] = 128
     param['model'][2]['np'] = 18
     param['model'][2]['part_str'] = ['nose', 'neck', 'Rsho', 'Relb', 'Rwri',  
@@ -215,18 +295,18 @@ mapid = mapid[3:]+mapid[0:3]
 
 # test AI challenge validation dataset
 # rootdir= '../ai_dataset/ai_challenger_keypoint_validation_20170911/keypoint_validation_images_20170911/'
-rootdir = '../ai_dataset/ai_challenger_keypoint_test_a_20170923/keypoint_test_a_images_20170923/'
+rootdir = '/data1/deepinsight/aichallenger/keypoint/ai_challenger_keypoint_test_a_20170923/keypoint_test_a_images_20170923/'
 images = os.listdir(rootdir)
 count = 0
 
 joints_all = []
 
-for image in images:
+for image in images[:10]:
     count += 1
     cimage = cv.imread(rootdir + str(image))
 
 
-    heatmap_avg, paf_avg = applyModel(cimage, param, sym, arg_params, aux_params)
+    heatmap_avg, paf_avg = applyModel(cimage, param, csym1, arg_params, aux_params)
 
 
     all_peaks = []
@@ -247,7 +327,9 @@ for image in images:
         map_down = np.zeros(map.shape)
         map_down[:,:-1] = map[:,1:]
 
-        peaks_binary = np.logical_and.reduce((map>=map_left, map>=map_right, map>=map_up, map>=map_down, map > param['thre1']))
+        
+        
+        peaks_binary = np.logical_and.reduce((map>=map_left, map>=map_right, map>=map_up, map>=map_down, map > param['thre_shg384']))
         peaks = zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0]) # note reverse
         peaks_with_score = [x + (map_ori[x[1],x[0]],) for x in peaks]
         cid = range(peak_counter, peak_counter + len(peaks))
@@ -255,7 +337,7 @@ for image in images:
 
         all_peaks.append(peaks_with_score_and_id)
         peak_counter += len(peaks)
-
+        # print map.max(),map.mean(),map.min(),peak_counter
 
     # find connection in the specified sequence, center 29 is in the position 15
     limbSeq = newslist
@@ -279,8 +361,10 @@ for image in images:
         # print limbSeq[k][0], limbSeq[k][1]
         nA = len(candA)
         nB = len(candB)
+        # print 'lenAB', nA,nB
         indexA, indexB = limbSeq[k]
         if(nA != 0 and nB != 0):
+            
             connection_candidate = []
             for i in range(nA):
                 for j in range(nB):
@@ -306,8 +390,10 @@ for image in images:
                     # print('score_midpts: ', score_midpts)
                     score_with_dist_prior = sum(score_midpts)/len(score_midpts) + min(0.5*cimage.shape[0]/norm-1, 0)
 
+                    #print 'score_with_dist_prior',score_with_dist_prior
+                    
                     # print('score_with_dist_prior: ', score_with_dist_prior)
-                    criterion1 = len(np.nonzero(score_midpts > param['thre2'])[0]) > 0.5 * len(score_midpts)
+                    criterion1 = len(np.nonzero(score_midpts > param['thre_shg384'])[0]) > 0.5 * len(score_midpts)
                     # print('score_midpts > param["thre2"]: ', len(np.nonzero(score_midpts > param['thre2'])[0]))
                     criterion2 = score_with_dist_prior > 0
 
@@ -322,22 +408,22 @@ for image in images:
                         print score_midpts
                     '''
                     if criterion1 and criterion2:
-                        # print('match')
-                        # print(i, j, score_with_dist_prior, score_with_dist_prior+candA[i][2]+candB[j][2])
+                        #print('match')
+                        #print(i, j, score_with_dist_prior, score_with_dist_prior+candA[i][2]+candB[j][2])
                         connection_candidate.append([i, j, score_with_dist_prior, score_with_dist_prior+candA[i][2]+candB[j][2]])
                     # print('--------end-----------')
             connection_candidate = sorted(connection_candidate, key=lambda x: x[2], reverse=True)
-            # print('-------------connection_candidate---------------')
-            # print(connection_candidate)
-            # print('------------------------------------------------')
+            #print('-------------connection_candidate---------------')
+            #print(connection_candidate)
+            #print('------------------------------------------------')
             connection = np.zeros((0,5))
             for c in range(len(connection_candidate)):
                 i,j,s = connection_candidate[c][0:3]
                 if(i not in connection[:,3] and j not in connection[:,4]):
                     connection = np.vstack([connection, [candA[i][3], candB[j][3], s, i, j]])
-                    # print('----------connection-----------')
-                    # print(connection)
-                    # print('-------------------------------')
+                    #print('----------connection-----------')
+                    #print(connection)
+                    #print('-------------------------------')
                     if(len(connection) >= min(nA, nB)):
                         break
 
@@ -348,24 +434,28 @@ for image in images:
             special_non_zero_index.append(indexA if nA != 0 else indexB)
             connection_all.append([])
 
-    #print connection_all
+    #print len(connection_all)#,connection_all
     # last number in each row is the total parts number of that person
     # the second last number in each row is the score of the overall configuration
     subset = -1 * np.ones((0, 16))
 
     candidate = np.array([item for sublist in all_peaks for item in sublist])
 
-    # print len(connection_all)
-    # print len(mapIdx)
-    print 'special_k:', special_k
+    #print 'mapIdx:',mapIdx,len(mapIdx)
+    #print 'special_k:', special_k
     for k in range(len(mapIdx)):
         if k not in special_k:
-            
             try:
+                #print 'connection_all[k].shape',connection_all[k].shape,
+                #print 'connection_all[k]',connection_all[k]
                 partAs = connection_all[k][:,0]
                 partBs = connection_all[k][:,1]
                 indexA, indexB = np.array(limbSeq[k]) - 1
-
+                
+                #print 'partAs',partAs
+                #print 'partBs',partBs
+                #print 'indexA, indexB, ',indexA, indexB
+                #print 'subset',subset
                 for i in range(len(connection_all[k])): #= 1:size(temp,1)
                     
                     found = 0
@@ -376,6 +466,7 @@ for image in images:
                             found += 1
 
                     if found == 1:
+                        # print "found = 1"
                         j = subset_idx[0]
                         # if k==2:
                             # print 'j ', j
@@ -414,9 +505,9 @@ for image in images:
             
     # delete some rows of subset which has few parts occur
     deleteIdx = [];
-    
+    print subset[:,-1], subset[:,-2]/subset[:,-1]
     for i in range(len(subset)):
-        if subset[i][-1] < 5 or subset[i][-2]/subset[i][-1] < 0.2:
+        if subset[i][-1] < 5 or subset[i][-2]/subset[i][-1] < 0.013:
             deleteIdx.append(i)
     subset = np.delete(subset, deleteIdx, axis=0)
 
@@ -446,8 +537,7 @@ for image in images:
     current_joints = {'image_id':image[:-4], 'keypoint_annotations':keypoint}
     joints_all.append(current_joints)
 
-    
-    print 'steps:', count
+    print 'steps:', count, current_joints
 
 
 with open('AI_pose_mxnet.json', 'w') as f:
