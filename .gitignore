@@ -92,3 +92,4 @@ output
 model
 
 .db
+*.lst

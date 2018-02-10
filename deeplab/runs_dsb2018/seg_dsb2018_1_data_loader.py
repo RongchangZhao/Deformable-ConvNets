@@ -235,16 +235,16 @@ class BatchFileIter(DataIter):
         assert img.size == label.size
         img = np.array(img, dtype=np.float32)  # (h, w, c)
         label = np.array(label)  # (h, w)
-        
+
         if self.resize:
             img = cv2.resize(img, (img.shape[0]/2,img.shape[1]/2) )
             label = cv2.resize(label, (label.shape[0]/2, label.shape[1]/2))
-            
+
         if self.cut_off_size is not None:
-            
+
             assert self.cut_off_size<=img.shape[0]
             assert self.cut_off_size<=img.shape[1]
-            
+
             max_hw = max(img.shape[0], img.shape[1])
             min_hw = min(img.shape[0], img.shape[1])
             if min_hw > self.cut_off_size:
@@ -270,15 +270,13 @@ class BatchFileIter(DataIter):
         img = np.swapaxes(img, 1, 2)  # (c, h, w)
         #img = np.expand_dims(img, axis=0)  # (1, c, h, w)
         label = np.array(label)  # (h, w)
-        
+
         if self.random_flip:
             _rnd = random.randint(0,1)
             if _rnd==1:
                 for c in range(img.shape[0]):
                     img[c,:,:] = np.fliplr(img[c,:,:])
                 label = np.fliplr(label)
-            
+
         #label = np.expand_dims(label, axis=0)  # (1, h, w)
         return (img, label)
-
-

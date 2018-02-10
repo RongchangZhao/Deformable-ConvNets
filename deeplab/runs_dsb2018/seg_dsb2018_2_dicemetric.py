@@ -23,7 +23,6 @@ class DiceMetric(mx.metric.EvalMetric):
                 self.sum_metric += 1.0
             else:
                 intersection = np.sum(pred_label * label)
+                # 2*intersection/|X|+|Y|
                 ret = (2. * intersection) / (pred_label_sum + label_sum)
                 self.sum_metric += ret
-
-
